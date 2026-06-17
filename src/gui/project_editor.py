@@ -44,6 +44,7 @@ class ProjectEditor(ctk.CTkFrame):
         self.project = project
         self.on_save = on_save
         self.pm = ProjectManager()
+        self._dirty = False
 
         if not project:
             self._show_empty()
@@ -60,6 +61,11 @@ class ProjectEditor(ctk.CTkFrame):
         )
         label.pack(expand=True)
 
+    def _mark_dirty(self):
+        if not self._dirty and self.project:
+            self._dirty = True
+            self.save_btn.configure(state="normal")
+
     def _build_form(self):
         for widget in self.winfo_children():
             widget.destroy()
@@ -68,9 +74,10 @@ class ProjectEditor(ctk.CTkFrame):
         header = ctk.CTkFrame(self, fg_color="transparent")
         header.pack(fill="x", padx=20, pady=15)
 
-        ctk.CTkLabel(
+        self.header_name = ctk.CTkLabel(
             header, text=self.project.name, font=ctk.CTkFont(size=20, weight="bold")
-        ).pack(side="left")
+        )
+        self.header_name.pack(side="left")
 
         ctk.CTkLabel(
             header,
@@ -82,27 +89,51 @@ class ProjectEditor(ctk.CTkFrame):
         # Форма
         form = ctk.CTkScrollableFrame(self, fg_color="transparent")
         form.pack(fill="both", expand=True, padx=20, pady=5)
-
-        # Увеличиваем скорость прокрутки
         form._parent_canvas.configure(yscrollincrement=30)
 
+        # === НАСТРОЙКИ ПРОЕКТА ===
+        ctk.CTkLabel(
+            form, text="Настройки проекта", font=ctk.CTkFont(size=12, weight="bold")
+        ).pack(anchor="w", pady=(10, 5))
+
         # Название
-        ctk.CTkLabel(form, text="Название", font=ctk.CTkFont(size=12)).pack(
-            anchor="w", pady=(10, 2)
-        )
+        ctk.CTkLabel(form, text="Название", font=ctk.CTkFont(size=11)).pack(anchor="w")
         self.name_entry = ctk.CTkEntry(form, width=400)
         self.name_entry.insert(0, self.project.name)
+        self.name_entry.bind("<KeyRelease>", lambda e: self._mark_dirty())
         setup_clipboard(self.name_entry)
-        self.name_entry.pack(anchor="w", pady=(0, 10))
+        self.name_entry.pack(anchor="w", pady=(0, 8))
 
         # Описание
-        ctk.CTkLabel(form, text="Описание", font=ctk.CTkFont(size=12)).pack(
-            anchor="w", pady=(10, 2)
-        )
-        self.desc_entry = ctk.CTkTextbox(form, width=400, height=80)
+        ctk.CTkLabel(form, text="Описание", font=ctk.CTkFont(size=11)).pack(anchor="w")
+        self.desc_entry = ctk.CTkTextbox(form, width=400, height=60)
         self.desc_entry.insert("1.0", self.project.description)
+        self.desc_entry.bind("<KeyRelease>", lambda e: self._mark_dirty())
         setup_clipboard(self.desc_entry)
-        self.desc_entry.pack(anchor="w", pady=(0, 10))
+        self.desc_entry.pack(anchor="w", pady=(0, 8))
+
+        # Интервал и макс бекапов
+        interval_frame = ctk.CTkFrame(form, fg_color="transparent")
+        interval_frame.pack(anchor="w", pady=(0, 8))
+
+        ctk.CTkLabel(
+            interval_frame, text="Интервал бекапа (сек):", font=ctk.CTkFont(size=11)
+        ).pack(side="left")
+        self.interval_entry = ctk.CTkEntry(interval_frame, width=80)
+        self.interval_entry.insert(0, str(self.project.auto_backup_interval))
+        self.interval_entry.bind("<KeyRelease>", lambda e: self._mark_dirty())
+        setup_clipboard(self.interval_entry)
+        self.interval_entry.pack(side="left", padx=5)
+
+        ctk.CTkLabel(
+            interval_frame, text="Макс. автобекапов:", font=ctk.CTkFont(size=11)
+        ).pack(side="left", padx=(15, 0))
+        self.max_backups_entry = ctk.CTkEntry(interval_frame, width=60)
+        self.max_backups_entry.insert(0, str(self.project.max_auto_backups))
+        self.max_backups_entry.bind("<KeyRelease>", lambda e: self._mark_dirty())
+        setup_clipboard(self.max_backups_entry)
+        self.max_backups_entry.pack(side="left", padx=5)
+        # =========================
 
         # Источники
         ctk.CTkLabel(
@@ -164,6 +195,7 @@ class ProjectEditor(ctk.CTkFrame):
 
         self.out_entry = ctk.CTkEntry(out_frame, width=320)
         self.out_entry.insert(0, self.project.output_path)
+        self.out_entry.bind("<KeyRelease>", lambda e: self._mark_dirty())
         setup_clipboard(self.out_entry)
         self.out_entry.pack(side="left")
 
@@ -179,7 +211,6 @@ class ProjectEditor(ctk.CTkFrame):
         self.backups_frame = ctk.CTkFrame(form, fg_color="transparent")
         self.backups_frame.pack(fill="x", pady=5)
 
-        # Кнопки бекапов
         backup_btn_frame = ctk.CTkFrame(form, fg_color="transparent")
         backup_btn_frame.pack(anchor="w", pady=5)
 
@@ -227,15 +258,31 @@ class ProjectEditor(ctk.CTkFrame):
         )
         self.status_label.pack(anchor="w", pady=5)
 
-        # Кнопка сохранения
-        ctk.CTkButton(
+        # Кнопка сохранения (неактивна по умолчанию)
+        self.save_btn = ctk.CTkButton(
             form,
-            text="Сохранить проект",
+            text="💾 Сохранить проект",
             fg_color="#007acc",
             hover_color="#005a9e",
             font=ctk.CTkFont(size=13, weight="bold"),
-            command=self._save,
-        ).pack(anchor="w", pady=20)
+            command=self._save_all,
+            state="disabled",
+        )
+        self.save_btn.pack(anchor="w", pady=20)
+
+        ctk.CTkButton(
+            actions_frame,
+            text="🔄 Git Pull",
+            width=100,
+            command=self._git_pull,
+        ).pack(side="left", padx=5)
+
+        ctk.CTkButton(
+            actions_frame,
+            text="⬆️ Git Push",
+            width=100,
+            command=self._git_push,
+        ).pack(side="left", padx=5)
 
     def _refresh_chips(self):
         for widget in self.chips_container.winfo_children():
@@ -256,6 +303,7 @@ class ProjectEditor(ctk.CTkFrame):
         if text not in self._extensions:
             self._extensions.append(text)
             self._refresh_chips()
+            self._mark_dirty()
 
         self.ext_input.delete(0, "end")
 
@@ -263,6 +311,7 @@ class ProjectEditor(ctk.CTkFrame):
         if ext in self._extensions:
             self._extensions.remove(ext)
             self._refresh_chips()
+            self._mark_dirty()
 
     def _refresh_sources(self):
         for widget in self.sources_frame.winfo_children():
@@ -321,6 +370,7 @@ class ProjectEditor(ctk.CTkFrame):
                 }
             )
             self._refresh_sources()
+            self._mark_dirty()
 
     def _add_file(self):
         path = filedialog.askopenfilename()
@@ -329,10 +379,12 @@ class ProjectEditor(ctk.CTkFrame):
                 {"type": "file", "path": path, "recursive": False, "exclude": []}
             )
             self._refresh_sources()
+            self._mark_dirty()
 
     def _remove_source(self, src):
         self.project.sources = [s for s in self.project.sources if s != src]
         self._refresh_sources()
+        self._mark_dirty()
 
     def _browse_output(self):
         path = filedialog.asksaveasfilename(
@@ -342,21 +394,36 @@ class ProjectEditor(ctk.CTkFrame):
         if path:
             self.out_entry.delete(0, "end")
             self.out_entry.insert(0, path)
+            self._mark_dirty()
 
-    def _save(self):
+    def _save_all(self):
         self.project.name = self.name_entry.get()
         self.project.description = self.desc_entry.get("1.0", "end-1c")
         self.project.extensions = self._extensions
         self.project.output_path = self.out_entry.get()
+        try:
+            self.project.auto_backup_interval = int(self.interval_entry.get())
+        except ValueError:
+            pass
+        try:
+            self.project.max_auto_backups = int(self.max_backups_entry.get())
+        except ValueError:
+            pass
 
         self.pm.save(self.project)
+        self._dirty = False
+        self.save_btn.configure(state="disabled")
+        self.header_name.configure(text=self.project.name)
+
         if self.on_save:
             self.on_save(self.project)
+
+        self.status_label.configure(text="✅ Проект сохранён", text_color="#4ec9b0")
 
     def _aggregate(self):
         from core.aggregator import Aggregator
 
-        self._save()
+        self._save_all()
 
         agg = Aggregator()
         result = agg.aggregate(
@@ -532,7 +599,7 @@ class ProjectEditor(ctk.CTkFrame):
 
         dialog = ConfirmDialog(self, message="Удалить этот бекап?")
         self.wait_window(dialog)
-        
+
         if not dialog.result:
             return
 
@@ -551,3 +618,72 @@ class ProjectEditor(ctk.CTkFrame):
 
     def _open_backup(self, path: str):
         open_file(path)
+
+    def _git_pull(self):
+        import threading
+        from pathlib import Path
+
+        def run():
+            from core.git_manager import GitManager
+
+            # Определяем рабочую папку от первого source
+            cwd = "."
+            if self.project.sources:
+                first = Path(self.project.sources[0]["path"])
+                if first.is_file():
+                    cwd = str(first.parent)
+                else:
+                    cwd = str(first)
+
+            result = GitManager.pull(cwd)
+            msg = (
+                "✅ Git Pull: успешно"
+                if result["success"]
+                else f"❌ Git Pull: {result['stderr'][:120]}"
+            )
+            self.after(
+                0,
+                lambda: self.status_label.configure(
+                    text=msg,
+                    text_color="#4ec9b0" if result["success"] else "#c75450",
+                ),
+            )
+
+        threading.Thread(target=run, daemon=True).start()
+        self.status_label.configure(
+            text="🔄 Git Pull выполняется...", text_color="#858585"
+        )
+
+    def _git_push(self):
+        import threading
+        from pathlib import Path
+
+        def run():
+            from core.git_manager import GitManager
+
+            cwd = "."
+            if self.project.sources:
+                first = Path(self.project.sources[0]["path"])
+                if first.is_file():
+                    cwd = str(first.parent)
+                else:
+                    cwd = str(first)
+
+            result = GitManager.push(cwd)
+            msg = (
+                "✅ Git Push: успешно"
+                if result["success"]
+                else f"❌ Git Push: {result['stderr'][:120]}"
+            )
+            self.after(
+                0,
+                lambda: self.status_label.configure(
+                    text=msg,
+                    text_color="#4ec9b0" if result["success"] else "#c75450",
+                ),
+            )
+
+        threading.Thread(target=run, daemon=True).start()
+        self.status_label.configure(
+            text="⬆️ Git Push выполняется...", text_color="#858585"
+        )
