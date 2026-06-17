@@ -1,18 +1,29 @@
 import time
 import threading
+import hashlib
+from pathlib import Path
 from core.backup_manager import BackupManager
 from core.aggregator import Aggregator
 from core.project_manager import ProjectManager
 
 
 class AutoBackupThread(threading.Thread):
-    def __init__(self, project, interval=15, callback=None):
+    def __init__(self, project, interval=300, callback=None):
         super().__init__(daemon=True)
         self.project = project
         self.interval = interval
         self.callback = callback
         self._stop_event = threading.Event()
-        self._last_hash = project.last_output_hash
+
+        # Инициализируем last_hash из проекта или из файла
+        self._last_hash = project.last_output_hash or ""
+        output_path = Path(project.output_path)
+        if output_path.exists() and not self._last_hash:
+            try:
+                content = output_path.read_bytes()
+                self._last_hash = hashlib.md5(content).hexdigest()
+            except Exception:
+                pass
 
     def stop(self):
         self._stop_event.set()
@@ -20,6 +31,8 @@ class AutoBackupThread(threading.Thread):
     def update_project(self, project):
         self.project = project
         self.interval = project.auto_backup_interval
+        if project.last_output_hash and project.last_output_hash != self._last_hash:
+            self._last_hash = project.last_output_hash
 
     def run(self):
         while not self._stop_event.is_set():
@@ -28,8 +41,10 @@ class AutoBackupThread(threading.Thread):
                     return
                 time.sleep(1)
 
+            if not getattr(self.project, "auto_backup_enabled", True):
+                continue
+
             try:
-                # Пересобираем проект, бееееееееее
                 agg = Aggregator()
                 result = agg.aggregate(
                     sources=self.project.sources,
@@ -43,7 +58,6 @@ class AutoBackupThread(threading.Thread):
 
                 current_hash = result["hash"]
 
-                # Если изменился — бекапим
                 if current_hash != self._last_hash:
                     bm = BackupManager(
                         backup_dir=self.project.backup_dir,

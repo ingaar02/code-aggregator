@@ -11,11 +11,11 @@ class App(ctk.CTk):
         super().__init__()
 
         self.title("Code Aggregator")
-        self.geometry("1200x800")
+        self.geometry("1200x600")
         self.minsize(900, 600)
 
         self.update_idletasks()
-        w, h = 1200, 800
+        w, h = 1200, 600
         x = (self.winfo_screenwidth() // 2) - (w // 2)
         y = (self.winfo_screenheight() // 2) - (h // 2)
         self.geometry(f"{w}x{h}+{x}+{y}")
@@ -49,7 +49,11 @@ class App(ctk.CTk):
             self.backup_thread.stop()
             self.backup_thread = None
 
-        if project and project.output_path:
+        if (
+            project
+            and getattr(project, "auto_backup_enabled", True)
+            and project.output_path
+        ):
             self.backup_thread = AutoBackupThread(
                 project=project,
                 interval=project.auto_backup_interval,
@@ -172,11 +176,10 @@ class App(ctk.CTk):
     def _on_save(self, project):
         self.sidebar.refresh()
         self._show_toast(f"Проект «{project.name}» сохранён")
-        # Перезапускаем поток если интервал изменился
         if self.backup_thread:
-            self.backup_thread.update_project(project)
-            if self.backup_thread.interval != project.auto_backup_interval:
-                self._start_backup_thread(project)
+            self.backup_thread.stop()
+            self.backup_thread = None
+        self._start_backup_thread(project)
 
     def _show_toast(self, message):
         Toast(self, message)
