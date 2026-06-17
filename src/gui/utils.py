@@ -110,3 +110,22 @@ def _cut_textbox(textbox):
             textbox.delete("sel.first", "sel.last")
     except Exception:
         pass
+    
+import platform
+import subprocess
+import os
+
+def open_file(path: str):
+    """Универсальное открытие файла/папки на Windows, macOS, Linux"""
+    if not path:
+        return
+    
+    p = os.path.expanduser(path)
+    
+    system = platform.system()
+    if system == "Darwin":  # macOS
+        subprocess.run(["open", p])
+    elif system == "Windows":
+        os.startfile(p)
+    else:  # Linux
+        subprocess.run(["xdg-open", p])

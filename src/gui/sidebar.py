@@ -1,5 +1,6 @@
 import customtkinter as ctk
 from core.project_manager import ProjectManager
+from gui.components import ConfirmDialog
 
 class ProjectCard(ctk.CTkFrame):
     def __init__(self, parent, project, on_click, on_delete, **kwargs):
@@ -8,7 +9,6 @@ class ProjectCard(ctk.CTkFrame):
         self.on_click = on_click
         self.on_delete = on_delete
         
-        # Иконка проекта — CTkLabel с цветным фоном, без лишних контейнеров
         self.icon = ctk.CTkLabel(
             self, text="📁", font=ctk.CTkFont(size=24),
             width=44, height=44, fg_color="#2d2d30",
@@ -16,7 +16,6 @@ class ProjectCard(ctk.CTkFrame):
         )
         self.icon.pack(side="left", padx=(12, 10), pady=6)
         
-        # Текст
         self.text_frame = ctk.CTkFrame(self, fg_color="transparent")
         self.text_frame.pack(side="left", fill="both", expand=True, padx=5)
         
@@ -33,7 +32,6 @@ class ProjectCard(ctk.CTkFrame):
         )
         self.stack_label.pack(fill="x")
         
-        # Кнопка удаления
         self.delete_btn = ctk.CTkButton(
             self, text="✕", width=28, height=28, fg_color="transparent",
             text_color="#858585", hover_color="#c75450", font=ctk.CTkFont(size=12),
@@ -41,7 +39,6 @@ class ProjectCard(ctk.CTkFrame):
         )
         self.delete_btn.pack(side="right", padx=12)
         
-        # Клик по карточке
         for widget in [self, self.icon, self.text_frame, self.name_label, self.stack_label]:
             widget.bind("<Button-1>", lambda e: on_click(project))
             widget.bind("<Enter>", self._on_hover)
@@ -66,18 +63,15 @@ class Sidebar(ctk.CTkFrame):
         self.on_project_create = on_project_create
         self.on_project_delete = on_project_delete
         
-        # Заголовок
         self.header = ctk.CTkLabel(
             self, text="ПРОЕКТЫ", font=ctk.CTkFont(size=11, weight="bold"),
             text_color="#858585", anchor="w"
         )
         self.header.pack(fill="x", padx=15, pady=(15, 5))
         
-        # Список проектов
         self.scroll = ctk.CTkScrollableFrame(self, fg_color="transparent")
         self.scroll.pack(fill="both", expand=True, padx=5, pady=5)
         
-        # Кнопка добавления
         self.add_btn = ctk.CTkButton(
             self, text="+ Новый проект", fg_color="#007acc", hover_color="#005a9e",
             font=ctk.CTkFont(size=12), command=self._on_create

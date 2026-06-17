@@ -1,7 +1,8 @@
 import customtkinter as ctk
 from tkinter import filedialog
 from core.project_manager import ProjectManager, Source
-from gui.utils import get_file_icon, setup_clipboard
+from gui.utils import get_file_icon, setup_clipboard, open_file
+from gui.components import ConfirmDialog
 
 
 class Chip(ctk.CTkFrame):
@@ -82,8 +83,8 @@ class ProjectEditor(ctk.CTkFrame):
         form = ctk.CTkScrollableFrame(self, fg_color="transparent")
         form.pack(fill="both", expand=True, padx=20, pady=5)
 
-        # ← ВОТ ЭТА СТРОКА: увеличиваем скорость прокрутки в 6 раз
-        form._parent_canvas.configure(yscrollincrement=6)
+        # Увеличиваем скорость прокрутки
+        form._parent_canvas.configure(yscrollincrement=30)
 
         # Название
         ctk.CTkLabel(form, text="Название", font=ctk.CTkFont(size=12)).pack(
@@ -169,6 +170,35 @@ class ProjectEditor(ctk.CTkFrame):
         ctk.CTkButton(
             out_frame, text="Обзор", width=60, command=self._browse_output
         ).pack(side="left", padx=5)
+
+        # === БЕКАПЫ ===
+        ctk.CTkLabel(
+            form, text="Бекапы", font=ctk.CTkFont(size=12, weight="bold")
+        ).pack(anchor="w", pady=(15, 5))
+
+        self.backups_frame = ctk.CTkFrame(form, fg_color="transparent")
+        self.backups_frame.pack(fill="x", pady=5)
+
+        # Кнопки бекапов
+        backup_btn_frame = ctk.CTkFrame(form, fg_color="transparent")
+        backup_btn_frame.pack(anchor="w", pady=5)
+
+        ctk.CTkButton(
+            backup_btn_frame,
+            text="💾 Ручной бекап",
+            width=120,
+            command=self._create_manual_backup,
+        ).pack(side="left", padx=5)
+
+        ctk.CTkButton(
+            backup_btn_frame,
+            text="🔄 Обновить список",
+            width=120,
+            command=self._refresh_backups,
+        ).pack(side="left", padx=5)
+
+        self._refresh_backups()
+        # =============
 
         # Кнопки действий
         actions_frame = ctk.CTkFrame(form, fg_color="transparent")
@@ -349,7 +379,6 @@ class ProjectEditor(ctk.CTkFrame):
             )
 
     def _open_sources(self):
-        import os
         from pathlib import Path
 
         if self.project.sources:
@@ -358,19 +387,167 @@ class ProjectEditor(ctk.CTkFrame):
             if path.is_file():
                 path = path.parent
             if path.exists():
-                os.startfile(str(path))
+                open_file(str(path))
 
     def _open_output(self):
-        import os
         from pathlib import Path
 
         path = Path(self.project.output_path)
         if path.exists():
             if path.is_file():
-                os.startfile(str(path.parent))
+                open_file(str(path.parent))
             else:
-                os.startfile(str(path))
+                open_file(str(path))
         else:
             self.status_label.configure(
                 text="❌ Выходной файл ещё не создан", text_color="#c75450"
             )
+
+    def _refresh_backups(self):
+        from core.backup_manager import BackupManager
+
+        for widget in self.backups_frame.winfo_children():
+            widget.destroy()
+
+        bm = BackupManager(
+            backup_dir=self.project.backup_dir,
+            project_name=self.project.name,
+            max_auto=self.project.max_auto_backups,
+        )
+
+        backups = bm.list_backups()
+
+        # Автобекапы
+        if backups["auto"]:
+            ctk.CTkLabel(
+                self.backups_frame,
+                text=f"Автоматические ({len(backups['auto'])}/{self.project.max_auto_backups}):",
+                font=ctk.CTkFont(size=11, weight="bold"),
+                text_color="#858585",
+            ).pack(anchor="w", pady=(5, 2))
+
+            for b in backups["auto"]:
+                frame = ctk.CTkFrame(
+                    self.backups_frame, fg_color="#2a2d2e", corner_radius=4
+                )
+                frame.pack(fill="x", pady=1)
+
+                ctk.CTkLabel(
+                    frame,
+                    text=f"🕐 {b['time']}  |  {b['name']}  |  {b['size']:,} bytes",
+                    font=ctk.CTkFont(size=10),
+                ).pack(side="left", padx=10, pady=4)
+
+                ctk.CTkButton(
+                    frame,
+                    text="Удалить",
+                    width=50,
+                    height=20,
+                    fg_color="#c75450",
+                    hover_color="#a0403c",
+                    font=ctk.CTkFont(size=9),
+                    command=lambda p=b["path"]: self._delete_backup(p),
+                ).pack(side="right", padx=2)
+
+                ctk.CTkButton(
+                    frame,
+                    text="Открыть",
+                    width=50,
+                    height=20,
+                    font=ctk.CTkFont(size=9),
+                    command=lambda p=b["path"]: self._open_backup(p),
+                ).pack(side="right", padx=5)
+
+        # Ручные бекапы
+        if backups["manual"]:
+            ctk.CTkLabel(
+                self.backups_frame,
+                text=f"Ручные ({len(backups['manual'])}):",
+                font=ctk.CTkFont(size=11, weight="bold"),
+                text_color="#858585",
+            ).pack(anchor="w", pady=(10, 2))
+
+            for b in backups["manual"]:
+                frame = ctk.CTkFrame(
+                    self.backups_frame, fg_color="#2a2d2e", corner_radius=4
+                )
+                frame.pack(fill="x", pady=1)
+
+                ctk.CTkLabel(
+                    frame,
+                    text=f"💾 {b['time']}  |  {b['name']}  |  {b['size']:,} bytes",
+                    font=ctk.CTkFont(size=10),
+                ).pack(side="left", padx=10, pady=4)
+
+                ctk.CTkButton(
+                    frame,
+                    text="Удалить",
+                    width=50,
+                    height=20,
+                    fg_color="#c75450",
+                    hover_color="#a0403c",
+                    font=ctk.CTkFont(size=9),
+                    command=lambda p=b["path"]: self._delete_backup(p),
+                ).pack(side="right", padx=2)
+
+                ctk.CTkButton(
+                    frame,
+                    text="Открыть",
+                    width=50,
+                    height=20,
+                    font=ctk.CTkFont(size=9),
+                    command=lambda p=b["path"]: self._open_backup(p),
+                ).pack(side="right", padx=5)
+
+        if not backups["auto"] and not backups["manual"]:
+            ctk.CTkLabel(
+                self.backups_frame,
+                text="Пока нет бекапов",
+                font=ctk.CTkFont(size=11),
+                text_color="#858585",
+            ).pack(anchor="w", pady=5)
+
+    def _create_manual_backup(self):
+        from core.backup_manager import BackupManager
+
+        bm = BackupManager(
+            backup_dir=self.project.backup_dir, project_name=self.project.name
+        )
+
+        result = bm.create_manual(self.project.output_path)
+        if result:
+            self.status_label.configure(
+                text=f"💾 Ручной бекап создан: {result['name']}",
+                text_color="#4ec9b0",
+            )
+            self._refresh_backups()
+        else:
+            self.status_label.configure(
+                text="❌ Нечего бекапить — соберите файлы сначала",
+                text_color="#c75450",
+            )
+
+    def _delete_backup(self, path: str):
+        from core.backup_manager import BackupManager
+
+        dialog = ConfirmDialog(self, message="Удалить этот бекап?")
+        self.wait_window(dialog)
+        
+        if not dialog.result:
+            return
+
+        bm = BackupManager(
+            backup_dir=self.project.backup_dir,
+            project_name=self.project.name,
+            max_auto=self.project.max_auto_backups,
+        )
+
+        if bm.delete_backup(path):
+            self.status_label.configure(
+                text="🗑️ Бекап удалён",
+                text_color="#858585",
+            )
+            self._refresh_backups()
+
+    def _open_backup(self, path: str):
+        open_file(path)
