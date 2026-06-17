@@ -96,7 +96,8 @@ class ProjectEditor(ctk.CTkFrame):
         # Форма
         form = ctk.CTkScrollableFrame(self, fg_color="transparent")
         form.pack(fill="both", expand=True, padx=20, pady=5)
-        form._parent_canvas.configure(yscrollincrement=30)
+        speed = getattr(self.project, "scroll_speed", 6)
+        form._parent_canvas.configure(yscrollincrement=speed)
 
         # Источники
         ctk.CTkLabel(
@@ -218,6 +219,11 @@ class ProjectEditor(ctk.CTkFrame):
         )
         self.status_label.pack(anchor="w", pady=5)
 
+    def refresh_backups_list(self):
+        """Публичный метод для обновления списка бэкапов извне (автобекап)"""
+        if hasattr(self, "backups_frame") and self.winfo_exists():
+            self._refresh_backups()
+
     def _refresh_chips(self):
         for widget in self.chips_container.winfo_children():
             widget.destroy()
@@ -237,6 +243,7 @@ class ProjectEditor(ctk.CTkFrame):
         if text not in self._extensions:
             self._extensions.append(text)
             self._refresh_chips()
+            self._auto_save()
 
         self.ext_input.delete(0, "end")
 
@@ -244,6 +251,7 @@ class ProjectEditor(ctk.CTkFrame):
         if ext in self._extensions:
             self._extensions.remove(ext)
             self._refresh_chips()
+            self._auto_save()
 
     def _refresh_sources(self):
         for widget in self.sources_frame.winfo_children():
@@ -302,6 +310,7 @@ class ProjectEditor(ctk.CTkFrame):
                 }
             )
             self._refresh_sources()
+            self._auto_save()
 
     def _add_file(self):
         path = filedialog.askopenfilename()
@@ -310,10 +319,19 @@ class ProjectEditor(ctk.CTkFrame):
                 {"type": "file", "path": path, "recursive": False, "exclude": []}
             )
             self._refresh_sources()
+            self._auto_save()
 
     def _remove_source(self, src):
         self.project.sources = [s for s in self.project.sources if s != src]
         self._refresh_sources()
+        self._auto_save()
+
+    def _auto_save(self):
+        """Быстрое сохранение источников и расширений без перезапуска потока"""
+        self.project.extensions = self._extensions
+        self.pm.save(self.project)
+        if self.on_save:
+            self.on_save(self.project)
 
     def _open_settings(self):
         dialog = ProjectSettingsDialog(
@@ -330,6 +348,10 @@ class ProjectEditor(ctk.CTkFrame):
 
     def _aggregate(self):
         from core.aggregator import Aggregator
+
+        # Сохраняем текущие источники/расширения
+        self.project.extensions = self._extensions
+        self.pm.save(self.project)
 
         agg = Aggregator()
         result = agg.aggregate(
@@ -546,18 +568,22 @@ class ProjectEditor(ctk.CTkFrame):
                 if result["success"]
                 else f"❌ Git Pull: {result['stderr'][:120]}"
             )
-            self.after(
-                0,
-                lambda: self.status_label.configure(
+
+            def update_ui():
+                if not self.winfo_exists():
+                    return
+                self.status_label.configure(
                     text=msg,
                     text_color="#4ec9b0" if result["success"] else "#c75450",
-                ),
-            )
+                )
+
+            self.after(0, update_ui)
 
         threading.Thread(target=run, daemon=True).start()
-        self.status_label.configure(
-            text="🔄 Git Pull выполняется...", text_color="#858585"
-        )
+        if self.winfo_exists():
+            self.status_label.configure(
+                text="🔄 Git Pull выполняется...", text_color="#858585"
+            )
 
     def _git_push(self):
         import threading
@@ -565,14 +591,14 @@ class ProjectEditor(ctk.CTkFrame):
 
         dialog = ctk.CTkToplevel(self)
         dialog.title("Git Push")
-        dialog.geometry("400x150")
+        dialog.geometry("500x200")
         dialog.resizable(False, False)
         dialog.grab_set()
 
         ctk.CTkLabel(dialog, text="Сообщение коммита:", font=ctk.CTkFont(size=12)).pack(
-            pady=(15, 5)
+            pady=(20, 5)
         )
-        msg_entry = ctk.CTkEntry(dialog, width=350)
+        msg_entry = ctk.CTkEntry(dialog, width=450)
         msg_entry.insert(
             0,
             getattr(
@@ -586,6 +612,9 @@ class ProjectEditor(ctk.CTkFrame):
 
         def do_push():
             message = msg_entry.get().strip() or "update: changes from Code Aggregator"
+            # Фикс TclError
+            dialog.grab_release()
+            dialog.master.focus_set()
             dialog.destroy()
 
             def run():
@@ -605,18 +634,22 @@ class ProjectEditor(ctk.CTkFrame):
                     if result["success"]
                     else f"❌ Git Push: {result['stderr'][:120]}"
                 )
-                self.after(
-                    0,
-                    lambda: self.status_label.configure(
+
+                def update_ui():
+                    if not self.winfo_exists():
+                        return
+                    self.status_label.configure(
                         text=msg,
                         text_color="#4ec9b0" if result["success"] else "#c75450",
-                    ),
-                )
+                    )
+
+                self.after(0, update_ui)
 
             threading.Thread(target=run, daemon=True).start()
-            self.status_label.configure(
-                text="⬆️ Git Push выполняется...", text_color="#858585"
-            )
+            if self.winfo_exists():
+                self.status_label.configure(
+                    text="⬆️ Git Push выполняется...", text_color="#858585"
+                )
 
         ctk.CTkButton(
             dialog,
@@ -624,9 +657,9 @@ class ProjectEditor(ctk.CTkFrame):
             fg_color="#007acc",
             hover_color="#005a9e",
             command=do_push,
-        ).pack(pady=15)
+        ).pack(pady=20)
 
         dialog.update_idletasks()
-        x = self.winfo_x() + (self.winfo_width() - 400) // 2
-        y = self.winfo_y() + (self.winfo_height() - 150) // 2
+        x = self.winfo_x() + (self.winfo_width() - 500) // 2
+        y = self.winfo_y() + (self.winfo_height() - 200) // 2
         dialog.geometry(f"+{x}+{y}")

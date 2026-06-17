@@ -11,11 +11,11 @@ class App(ctk.CTk):
         super().__init__()
 
         self.title("Code Aggregator")
-        self.geometry("1200x600")
+        self.geometry("1200x800")
         self.minsize(900, 600)
 
         self.update_idletasks()
-        w, h = 1200, 600
+        w, h = 1200, 800
         x = (self.winfo_screenwidth() // 2) - (w // 2)
         y = (self.winfo_screenheight() // 2) - (h // 2)
         self.geometry(f"{w}x{h}+{x}+{y}")
@@ -62,7 +62,15 @@ class App(ctk.CTk):
             self.backup_thread.start()
 
     def _on_auto_backup(self, result):
-        self.after(0, lambda: self._show_toast(f"🕐 Автобекап: {result['name']}"))
+        def update():
+            if not self.winfo_exists():
+                return
+            self._show_toast(f"🕐 Автобекап: {result['name']}")
+            # Автообновление списка бэкапов в редакторе
+            if hasattr(self.editor, "refresh_backups_list"):
+                self.editor.refresh_backups_list()
+
+        self.after(0, update)
 
     def _on_select(self, project):
         if self.backup_thread:
@@ -176,6 +184,7 @@ class App(ctk.CTk):
     def _on_save(self, project):
         self.sidebar.refresh()
         self._show_toast(f"Проект «{project.name}» сохранён")
+        # Перезапускаем поток с новыми настройками (интервал, вкл/выкл)
         if self.backup_thread:
             self.backup_thread.stop()
             self.backup_thread = None

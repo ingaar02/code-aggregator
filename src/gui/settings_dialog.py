@@ -10,7 +10,7 @@ class ProjectSettingsDialog(ctk.CTkToplevel):
         self.result = False
 
         self.title("Настройки проекта")
-        self.geometry("500x520")
+        self.geometry("500x580")
         self.resizable(False, False)
         self.grab_set()
 
@@ -18,7 +18,7 @@ class ProjectSettingsDialog(ctk.CTkToplevel):
 
         self.update_idletasks()
         x = parent.winfo_x() + (parent.winfo_width() - 500) // 2
-        y = parent.winfo_y() + (parent.winfo_height() - 520) // 2
+        y = parent.winfo_y() + (parent.winfo_height() - 580) // 2
         self.geometry(f"+{x}+{y}")
 
     def _build(self):
@@ -63,8 +63,17 @@ class ProjectSettingsDialog(ctk.CTkToplevel):
         self.max_backups_entry.pack(side="left", padx=5)
 
         ctk.CTkLabel(
+            form,
+            text="Чувствительность прокрутки (пикселей):",
+            font=ctk.CTkFont(size=11),
+        ).pack(anchor="w", pady=(10, 2))
+        self.scroll_entry = ctk.CTkEntry(form, width=80)
+        self.scroll_entry.insert(0, str(getattr(self.project, "scroll_speed", 6)))
+        self.scroll_entry.pack(anchor="w", pady=(0, 10))
+
+        ctk.CTkLabel(
             form, text="Путь к выходному файлу", font=ctk.CTkFont(size=12)
-        ).pack(anchor="w", pady=(15, 2))
+        ).pack(anchor="w", pady=(10, 2))
         out_frame = ctk.CTkFrame(form, fg_color="transparent")
         out_frame.pack(anchor="w", pady=(0, 10))
         self.out_entry = ctk.CTkEntry(out_frame, width=320)
@@ -113,7 +122,7 @@ class ProjectSettingsDialog(ctk.CTkToplevel):
         ).pack(side="left", padx=5)
 
         ctk.CTkButton(
-            btn_frame, text="Отмена", font=ctk.CTkFont(size=13), command=self.destroy
+            btn_frame, text="Отмена", font=ctk.CTkFont(size=13), command=self._cancel
         ).pack(side="left", padx=5)
 
     def _browse_output(self):
@@ -129,6 +138,10 @@ class ProjectSettingsDialog(ctk.CTkToplevel):
             self.backup_entry.insert(0, path)
 
     def _save(self):
+        # Фикс TclError: снимаем фокус и grab перед уничтожением
+        self.master.focus_set()
+        self.grab_release()
+
         self.project.name = self.name_entry.get()
         self.project.description = self.desc_entry.get("1.0", "end-1c")
         self.project.auto_backup_enabled = self.auto_backup_var.get()
@@ -138,6 +151,10 @@ class ProjectSettingsDialog(ctk.CTkToplevel):
             pass
         try:
             self.project.max_auto_backups = int(self.max_backups_entry.get())
+        except ValueError:
+            pass
+        try:
+            self.project.scroll_speed = int(self.scroll_entry.get())
         except ValueError:
             pass
         self.project.output_path = self.out_entry.get()
@@ -152,4 +169,9 @@ class ProjectSettingsDialog(ctk.CTkToplevel):
         self.result = True
         if self.on_save:
             self.on_save(self.project)
+        self.destroy()
+
+    def _cancel(self):
+        self.master.focus_set()
+        self.grab_release()
         self.destroy()
