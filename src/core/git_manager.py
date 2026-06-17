@@ -33,26 +33,36 @@ class GitManager:
 
     @classmethod
     def get_repo_root(cls, cwd):
-        """Находит корень Git-репозитория от любой папки внутри"""
         result = cls._run(["git", "rev-parse", "--show-toplevel"], cwd)
         if result["success"] and result["stdout"]:
             return result["stdout"].strip()
         return None
 
     @classmethod
+    def is_repo(cls, cwd):
+        """Проверяет, находится ли cwd внутри Git-репозитория"""
+        return cls.get_repo_root(cwd) is not None
+
+    @classmethod
     def pull(cls, cwd):
+        if not cls.is_repo(cwd):
+            return {
+                "success": False,
+                "stderr": "Git-репозиторий не найден. Выполните git init.",
+            }
         root = cls.get_repo_root(cwd)
-        if not root:
-            return {"success": False, "stderr": "Git-репозиторий не найден"}
         return cls._run(["git", "pull"], root)
 
     @classmethod
     def push(cls, cwd, message="update: auto commit from Code Aggregator"):
-        root = cls.get_repo_root(cwd)
-        if not root:
-            return {"success": False, "stderr": "Git-репозиторий не найден"}
+        if not cls.is_repo(cwd):
+            return {
+                "success": False,
+                "stderr": "Git-репозиторий не найден. Выполните git init.",
+            }
 
-        # Проверяем, есть ли изменения
+        root = cls.get_repo_root(cwd)
+
         status = cls._run(["git", "status", "--porcelain"], root)
         if not status["success"]:
             return status
@@ -60,7 +70,6 @@ class GitManager:
         has_changes = bool(status["stdout"].strip())
 
         if has_changes:
-            # Add → Commit → Push
             add = cls._run(["git", "add", "."], root)
             if not add["success"]:
                 return add
@@ -69,6 +78,5 @@ class GitManager:
             if not commit["success"]:
                 return commit
 
-        # Push (если есть что пушить или незапушенные коммиты)
         push = cls._run(["git", "push"], root)
         return push

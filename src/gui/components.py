@@ -6,8 +6,6 @@ class Toast(ctk.CTkToplevel):
         super().__init__(parent)
         self.overrideredirect(True)
         self.attributes("-topmost", True)
-
-        # Убираем фон окна через tk, не через CTk
         self.configure(fg_color="#007acc")
 
         ctk.CTkLabel(
@@ -63,9 +61,29 @@ class ConfirmDialog(ctk.CTkToplevel):
         self.geometry(f"+{x}+{y}")
 
     def _cancel(self):
+        self.grab_release()
+        self.master.focus_set()
         self.result = False
         self.destroy()
 
     def _confirm(self):
+        self.grab_release()
+        self.master.focus_set()
         self.result = True
         self.destroy()
+
+
+class StatusBar(ctk.CTkFrame):
+    """Фиксированный статус-бар внизу окна"""
+
+    def __init__(self, parent, **kwargs):
+        super().__init__(parent, fg_color="#252526", height=32, **kwargs)
+        self.pack_propagate(False)
+
+        self.label = ctk.CTkLabel(
+            self, text="Готов", font=ctk.CTkFont(size=11), text_color="#858585"
+        )
+        self.label.pack(side="left", padx=15, pady=4)
+
+    def set(self, text, color="#858585"):
+        self.label.configure(text=text, text_color=color)

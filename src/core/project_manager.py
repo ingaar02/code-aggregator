@@ -32,6 +32,7 @@ class Project:
     auto_backup_enabled: bool = True
     default_git_message: str = "update: changes from Code Aggregator"
     scroll_speed: int = 6
+    aliases: List[str] = field(default_factory=list)
     last_output_hash: str = ""
     last_backup_time: float = 0.0
 
@@ -96,6 +97,7 @@ class ProjectManager:
             "icon_path": "",
             "last_backup_time": 0.0,
             "scroll_speed": 6,
+            "aliases": [],
         }
         for key, val in defaults.items():
             if key not in data:
@@ -123,6 +125,7 @@ class ProjectManager:
                 "icon_path": "",
                 "last_backup_time": 0.0,
                 "scroll_speed": 6,
+                "aliases": [],
             }
             for key, val in defaults.items():
                 if key not in data:
