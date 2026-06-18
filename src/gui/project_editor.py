@@ -4,7 +4,7 @@ from pathlib import Path
 from PIL import Image
 from core.project_manager import ProjectManager, Source
 from gui.utils import get_file_icon, setup_clipboard, open_file
-from gui.components import ConfirmDialog, Tooltip
+from gui.components import ConfirmDialog, Tooltip, Toast
 from gui.settings_dialog import ProjectSettingsDialog
 
 
@@ -88,20 +88,19 @@ class ProjectEditor(ctk.CTkFrame):
             widget.destroy()
 
         # Заголовок
-        header = ctk.CTkFrame(self, fg_color="transparent", height=50)
+        header = ctk.CTkFrame(self, fg_color="transparent", height=54)
         header.pack_propagate(False)
         header.pack(fill="x", padx=20, pady=(10, 0))
 
-        # Иконка проекта
         self._header_icon = None
         if self.project.icon_path and Path(self.project.icon_path).exists():
             try:
                 img = Image.open(self.project.icon_path)
                 self._header_icon = ctk.CTkImage(
-                    light_image=img, dark_image=img, size=(32, 32)
+                    light_image=img, dark_image=img, size=(36, 36)
                 )
                 icon_lbl = ctk.CTkLabel(
-                    header, image=self._header_icon, text="", width=32, height=32
+                    header, image=self._header_icon, text="", width=36, height=36
                 )
                 icon_lbl.pack(side="left", padx=(0, 10))
                 Tooltip(icon_lbl, "Иконка проекта", delay=400)
@@ -131,8 +130,9 @@ class ProjectEditor(ctk.CTkFrame):
         btn_settings = ctk.CTkButton(
             header,
             text="⚙️",
-            width=32,
-            height=32,
+            width=34,
+            height=34,
+            corner_radius=6,
             fg_color="transparent",
             text_color="#858585",
             hover_color="#2a2d2e",
@@ -173,15 +173,28 @@ class ProjectEditor(ctk.CTkFrame):
             scroll, text="Источники", font=ctk.CTkFont(size=13, weight="bold")
         ).pack(anchor="w", pady=(0, 5))
 
-        self.sources_frame = ctk.CTkFrame(scroll, fg_color="transparent")
-        self.sources_frame.pack(fill="x", pady=5)
+        # Карточка-контейнер для источников
+        sources_card = ctk.CTkFrame(
+            scroll,
+            fg_color="#252526",
+            corner_radius=10,
+            border_width=1,
+            border_color="#3e3e42",
+        )
+        sources_card.pack(fill="x", pady=5)
+        self.sources_frame = ctk.CTkFrame(sources_card, fg_color="transparent")
+        self.sources_frame.pack(fill="x", padx=10, pady=8)
         self._refresh_sources()
 
         btn_frame = ctk.CTkFrame(scroll, fg_color="transparent")
-        btn_frame.pack(anchor="w", pady=5)
+        btn_frame.pack(anchor="w", pady=8)
 
         btn_add_dir = ctk.CTkButton(
-            btn_frame, text="➕ Добавить папку", width=160, command=self._add_directory
+            btn_frame,
+            text="➕ Добавить папку",
+            width=170,
+            height=32,
+            command=self._add_directory,
         )
         btn_add_dir.pack(side="left", padx=5)
         Tooltip(
@@ -189,7 +202,11 @@ class ProjectEditor(ctk.CTkFrame):
         )
 
         btn_add_file = ctk.CTkButton(
-            btn_frame, text="➕ Добавить файл", width=160, command=self._add_file
+            btn_frame,
+            text="➕ Добавить файл",
+            width=170,
+            height=32,
+            command=self._add_file,
         )
         btn_add_file.pack(side="left", padx=5)
         Tooltip(btn_add_file, "Выбрать отдельный файл через проводник", delay=400)
@@ -205,7 +222,10 @@ class ProjectEditor(ctk.CTkFrame):
         input_frame.pack(anchor="w", pady=(0, 10))
 
         self.ext_input = ctk.CTkEntry(
-            input_frame, width=250, placeholder_text="Введите .ext и нажмите Enter"
+            input_frame,
+            width=250,
+            height=32,
+            placeholder_text="Введите .ext и нажмите Enter",
         )
         self.ext_input.pack(side="left")
         setup_clipboard(self.ext_input)
@@ -236,22 +256,41 @@ class ProjectEditor(ctk.CTkFrame):
         speed = getattr(self.project, "scroll_speed", 6)
         scroll._parent_canvas.configure(yscrollincrement=speed)
 
+        # === Выходной файл ===
         ctk.CTkLabel(
             scroll, text="Выходной файл", font=ctk.CTkFont(size=13, weight="bold")
         ).pack(anchor="w", pady=(0, 5))
-        out_frame = ctk.CTkFrame(scroll, fg_color="transparent")
-        out_frame.pack(anchor="w", fill="x", pady=(0, 10))
-        self.out_entry = ctk.CTkEntry(out_frame, width=400)
+
+        out_card = ctk.CTkFrame(
+            scroll,
+            fg_color="#252526",
+            corner_radius=10,
+            border_width=1,
+            border_color="#3e3e42",
+        )
+        out_card.pack(fill="x", pady=5)
+        out_frame = ctk.CTkFrame(out_card, fg_color="transparent")
+        out_frame.pack(fill="x", padx=12, pady=12)
+
+        self.out_entry = ctk.CTkEntry(out_frame, height=32)
         self.out_entry.insert(0, self.project.output_path)
         self.out_entry.pack(side="left", fill="x", expand=True)
         Tooltip(self.out_entry, "Путь к файлу, куда будет собран результат", delay=400)
 
         btn_out = ctk.CTkButton(
-            out_frame, text="📁 Обзор", width=90, command=self._browse_output
+            out_frame,
+            text="📁 Обзор",
+            width=110,
+            height=32,
+            fg_color="#3e3e42",
+            hover_color="#4e4e52",
+            font=ctk.CTkFont(size=12),
+            command=self._browse_output,
         )
-        btn_out.pack(side="right", padx=5)
+        btn_out.pack(side="right", padx=(8, 0))
         Tooltip(btn_out, "Выбрать путь для сохранения результата", delay=400)
 
+        # === Действия ===
         ctk.CTkLabel(
             scroll, text="Действия", font=ctk.CTkFont(size=13, weight="bold")
         ).pack(anchor="w", pady=(15, 5))
@@ -264,37 +303,56 @@ class ProjectEditor(ctk.CTkFrame):
             fg_color="#007acc",
             hover_color="#005a9e",
             font=ctk.CTkFont(size=13, weight="bold"),
+            height=32,
             command=self._aggregate,
         )
         btn_agg.pack(side="left", padx=5)
         Tooltip(btn_agg, "Собрать все файлы в один документ", delay=400)
 
         btn_src = ctk.CTkButton(
-            actions, text="📂 Исходники", width=120, command=self._open_sources
+            actions,
+            text="📂 Исходники",
+            width=130,
+            height=32,
+            command=self._open_sources,
         )
         btn_src.pack(side="left", padx=5)
         Tooltip(btn_src, "Открыть папку с исходниками в проводнике", delay=400)
 
         btn_res = ctk.CTkButton(
-            actions, text="📄 Результат", width=120, command=self._open_output
+            actions,
+            text="📄 Результат",
+            width=130,
+            height=32,
+            command=self._open_output,
         )
         btn_res.pack(side="left", padx=5)
         Tooltip(btn_res, "Открыть папку с результатом в проводнике", delay=400)
 
+        # === Бекапы ===
         ctk.CTkLabel(
             scroll, text="Бекапы", font=ctk.CTkFont(size=13, weight="bold")
         ).pack(anchor="w", pady=(20, 5))
 
-        self.backups_frame = ctk.CTkFrame(scroll, fg_color="transparent")
-        self.backups_frame.pack(fill="x", pady=5)
+        backups_card = ctk.CTkFrame(
+            scroll,
+            fg_color="#252526",
+            corner_radius=10,
+            border_width=1,
+            border_color="#3e3e42",
+        )
+        backups_card.pack(fill="x", pady=5)
+        self.backups_frame = ctk.CTkFrame(backups_card, fg_color="transparent")
+        self.backups_frame.pack(fill="x", padx=10, pady=8)
 
         backup_btn_frame = ctk.CTkFrame(scroll, fg_color="transparent")
-        backup_btn_frame.pack(anchor="w", pady=5)
+        backup_btn_frame.pack(anchor="w", pady=8)
 
         btn_manual = ctk.CTkButton(
             backup_btn_frame,
             text="💾 Ручной бекап",
             width=160,
+            height=32,
             command=self._create_manual_backup,
         )
         btn_manual.pack(side="left", padx=5)
@@ -304,6 +362,7 @@ class ProjectEditor(ctk.CTkFrame):
             backup_btn_frame,
             text="🔄 Обновить список",
             width=160,
+            height=32,
             command=self._refresh_backups,
         )
         btn_refresh.pack(side="left", padx=5)
@@ -321,17 +380,25 @@ class ProjectEditor(ctk.CTkFrame):
             anchor="w", pady=(0, 5)
         )
 
-        git_frame = ctk.CTkFrame(scroll, fg_color="transparent")
-        git_frame.pack(anchor="w", pady=10)
+        git_card = ctk.CTkFrame(
+            scroll,
+            fg_color="#252526",
+            corner_radius=10,
+            border_width=1,
+            border_color="#3e3e42",
+        )
+        git_card.pack(fill="x", pady=5)
+        git_frame = ctk.CTkFrame(git_card, fg_color="transparent")
+        git_frame.pack(anchor="w", padx=12, pady=12)
 
         btn_pull = ctk.CTkButton(
-            git_frame, text="🔄 Git Pull", width=160, command=self._git_pull
+            git_frame, text="🔄 Git Pull", width=160, height=32, command=self._git_pull
         )
         btn_pull.pack(side="left", padx=5)
         Tooltip(btn_pull, "git pull из первого источника проекта", delay=400)
 
         btn_push = ctk.CTkButton(
-            git_frame, text="⬆️ Git Push", width=160, command=self._git_push
+            git_frame, text="⬆️ Git Push", width=160, height=32, command=self._git_push
         )
         btn_push.pack(side="left", padx=5)
         Tooltip(btn_push, "git add, commit, push с настраиваемым сообщением", delay=400)
@@ -397,10 +464,20 @@ class ProjectEditor(ctk.CTkFrame):
 
         for src in self.project.sources:
             frame = ctk.CTkFrame(
-                self.sources_frame, fg_color="#2a2d2e", corner_radius=6, height=48
+                self.sources_frame, fg_color="#2a2d2e", corner_radius=8, height=56
             )
             frame.pack_propagate(False)
-            frame.pack(fill="x", pady=3)
+            frame.pack(fill="x", pady=4)
+
+            # Hover effect
+            def _on_hover(event, f=frame):
+                f.configure(fg_color="#333337")
+
+            def _on_leave(event, f=frame):
+                f.configure(fg_color="#2a2d2e")
+
+            frame.bind("<Enter>", _on_hover)
+            frame.bind("<Leave>", _on_leave)
 
             if src["type"] == "directory":
                 icon_text = "📁"
@@ -417,14 +494,14 @@ class ProjectEditor(ctk.CTkFrame):
             icon_label = ctk.CTkLabel(
                 frame,
                 text=icon_text,
-                font=ctk.CTkFont(size=22),
-                width=40,
-                height=40,
+                font=ctk.CTkFont(size=24),
+                width=44,
+                height=44,
                 fg_color=color,
-                corner_radius=6,
+                corner_radius=10,
                 anchor="center",
             )
-            icon_label.pack(side="left", padx=(12, 10), pady=4)
+            icon_label.pack(side="left", padx=(12, 10), pady=6)
             Tooltip(icon_label, tip, delay=500, wrap=400)
 
             path_lbl = ctk.CTkLabel(frame, text=src["path"], font=ctk.CTkFont(size=12))
@@ -434,15 +511,16 @@ class ProjectEditor(ctk.CTkFrame):
             btn_del = ctk.CTkButton(
                 frame,
                 text="✕",
-                width=24,
-                height=24,
-                fg_color="transparent",
-                text_color="#858585",
-                hover_color="#c75450",
-                font=ctk.CTkFont(size=12),
+                width=28,
+                height=28,
+                corner_radius=6,
+                fg_color="#c75450",
+                text_color="white",
+                hover_color="#a0403c",
+                font=ctk.CTkFont(size=12, weight="bold"),
                 command=lambda s=src: self._remove_source(s),
             )
-            btn_del.pack(side="right", padx=10)
+            btn_del.pack(side="right", padx=12)
             Tooltip(btn_del, "Удалить источник из проекта", delay=400)
 
     def _add_directory(self):
@@ -500,12 +578,11 @@ class ProjectEditor(ctk.CTkFrame):
         self.header_name.configure(text=project.name)
         self.git_msg_display.configure(text=project.default_git_message)
 
-        # Обновляем иконку в заголовке без пересоздания формы
         if project.icon_path and Path(project.icon_path).exists():
             try:
                 img = Image.open(project.icon_path)
                 self._header_icon = ctk.CTkImage(
-                    light_image=img, dark_image=img, size=(32, 32)
+                    light_image=img, dark_image=img, size=(36, 36)
                 )
                 for child in self.winfo_children()[0].winfo_children():
                     if isinstance(child, ctk.CTkLabel) and child.cget("image") != "":
@@ -594,23 +671,38 @@ class ProjectEditor(ctk.CTkFrame):
 
             for b in backups["auto"]:
                 frame = ctk.CTkFrame(
-                    self.backups_frame, fg_color="#2a2d2e", corner_radius=4
+                    self.backups_frame, fg_color="#2a2d2e", corner_radius=6
                 )
-                frame.pack(fill="x", pady=1)
+                frame.pack(fill="x", pady=2)
 
                 lbl = ctk.CTkLabel(
                     frame,
                     text=f"🕐 {b['time']}  |  {b['name']}  |  {b['size']:,} bytes",
                     font=ctk.CTkFont(size=10),
                 )
-                lbl.pack(side="left", padx=10, pady=4)
+                lbl.pack(side="left", padx=10, pady=5)
                 Tooltip(lbl, f"Автобекап: {b['name']}\n{b['path']}", delay=400)
+
+                btn_copy = ctk.CTkButton(
+                    frame,
+                    text="📋",
+                    width=28,
+                    height=22,
+                    corner_radius=4,
+                    fg_color="#3e3e42",
+                    hover_color="#4e4e52",
+                    font=ctk.CTkFont(size=9),
+                    command=lambda p=b["path"]: self._copy_backup(p),
+                )
+                btn_copy.pack(side="right", padx=2)
+                Tooltip(btn_copy, "Копировать содержимое в буфер обмена", delay=400)
 
                 btn_del = ctk.CTkButton(
                     frame,
                     text="Удалить",
                     width=60,
-                    height=20,
+                    height=22,
+                    corner_radius=4,
                     fg_color="#c75450",
                     hover_color="#a0403c",
                     font=ctk.CTkFont(size=9),
@@ -623,7 +715,10 @@ class ProjectEditor(ctk.CTkFrame):
                     frame,
                     text="Открыть",
                     width=60,
-                    height=20,
+                    height=22,
+                    corner_radius=4,
+                    fg_color="#007acc",
+                    hover_color="#005a9e",
                     font=ctk.CTkFont(size=9),
                     command=lambda p=b["path"]: self._open_backup(p),
                 )
@@ -640,23 +735,38 @@ class ProjectEditor(ctk.CTkFrame):
 
             for b in backups["manual"]:
                 frame = ctk.CTkFrame(
-                    self.backups_frame, fg_color="#2a2d2e", corner_radius=4
+                    self.backups_frame, fg_color="#2a2d2e", corner_radius=6
                 )
-                frame.pack(fill="x", pady=1)
+                frame.pack(fill="x", pady=2)
 
                 lbl = ctk.CTkLabel(
                     frame,
                     text=f"💾 {b['time']}  |  {b['name']}  |  {b['size']:,} bytes",
                     font=ctk.CTkFont(size=10),
                 )
-                lbl.pack(side="left", padx=10, pady=4)
+                lbl.pack(side="left", padx=10, pady=5)
                 Tooltip(lbl, f"Ручной бекап: {b['name']}\n{b['path']}", delay=400)
+
+                btn_copy = ctk.CTkButton(
+                    frame,
+                    text="📋",
+                    width=28,
+                    height=22,
+                    corner_radius=4,
+                    fg_color="#3e3e42",
+                    hover_color="#4e4e52",
+                    font=ctk.CTkFont(size=9),
+                    command=lambda p=b["path"]: self._copy_backup(p),
+                )
+                btn_copy.pack(side="right", padx=2)
+                Tooltip(btn_copy, "Копировать содержимое в буфер обмена", delay=400)
 
                 btn_del = ctk.CTkButton(
                     frame,
                     text="Удалить",
                     width=60,
-                    height=20,
+                    height=22,
+                    corner_radius=4,
                     fg_color="#c75450",
                     hover_color="#a0403c",
                     font=ctk.CTkFont(size=9),
@@ -669,7 +779,10 @@ class ProjectEditor(ctk.CTkFrame):
                     frame,
                     text="Открыть",
                     width=60,
-                    height=20,
+                    height=22,
+                    corner_radius=4,
+                    fg_color="#007acc",
+                    hover_color="#005a9e",
                     font=ctk.CTkFont(size=9),
                     command=lambda p=b["path"]: self._open_backup(p),
                 )
@@ -699,6 +812,16 @@ class ProjectEditor(ctk.CTkFrame):
             self._refresh_backups()
         else:
             self._set_status("Нечего бекапить — соберите файлы сначала", "#c75450")
+
+    def _copy_backup(self, path: str):
+        try:
+            content = Path(path).read_text(encoding="utf-8")
+            self.clipboard_clear()
+            self.clipboard_append(content)
+            self._set_status("Содержимое бекапа скопировано в буфер", "#4ec9b0")
+            Toast(self.winfo_toplevel(), "📋 Скопировано в буфер обмена")
+        except Exception as e:
+            self._set_status(f"Ошибка копирования: {e}", "#c75450")
 
     def _delete_backup(self, path: str):
         from core.backup_manager import BackupManager

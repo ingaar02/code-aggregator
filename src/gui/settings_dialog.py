@@ -16,7 +16,7 @@ class ProjectSettingsDialog(ctk.CTkToplevel):
         self._pending_icon_path = None
 
         self.title("Настройки проекта")
-        self.geometry("600x750")
+        self.geometry("620x780")
         self.resizable(False, False)
         self.grab_set()
 
@@ -24,68 +24,88 @@ class ProjectSettingsDialog(ctk.CTkToplevel):
 
         self.update_idletasks()
         toplevel = parent.winfo_toplevel()
-        x = toplevel.winfo_x() + (toplevel.winfo_width() - 600) // 2
-        y = toplevel.winfo_y() + (toplevel.winfo_height() - 750) // 2
+        x = toplevel.winfo_x() + (toplevel.winfo_width() - 620) // 2
+        y = toplevel.winfo_y() + (toplevel.winfo_height() - 780) // 2
         self.geometry(f"+{x}+{y}")
 
     def _build(self):
+        # Заголовок
         header = ctk.CTkFrame(self, fg_color="transparent", height=50)
         header.pack_propagate(False)
-        header.pack(fill="x", padx=20, pady=(15, 0))
+        header.pack(fill="x", padx=24, pady=(18, 0))
         ctk.CTkLabel(
             header,
             text="⚙️ Настройки проекта",
             font=ctk.CTkFont(size=18, weight="bold"),
         ).pack(side="left", pady=5)
 
+        # Основной скролл
         form = ctk.CTkScrollableFrame(self, fg_color="transparent")
-        form.pack(fill="both", expand=True, padx=20, pady=10)
+        form.pack(fill="both", expand=True, padx=24, pady=12)
         form._parent_canvas.configure(yscrollincrement=6)
 
-        # === ИКОНКА ===
-        ctk.CTkLabel(
-            form, text="Иконка проекта", font=ctk.CTkFont(size=12, weight="bold")
-        ).pack(anchor="w", pady=(10, 5))
+        # === Карточка: Иконка и название ===
+        card_info = ctk.CTkFrame(
+            form,
+            fg_color="#252526",
+            corner_radius=10,
+            border_width=1,
+            border_color="#3e3e42",
+        )
+        card_info.pack(fill="x", pady=8)
 
-        icon_frame = ctk.CTkFrame(form, fg_color="transparent")
-        icon_frame.pack(anchor="w", pady=5, fill="x")
+        ctk.CTkLabel(
+            card_info,
+            text="Иконка и название",
+            font=ctk.CTkFont(size=13, weight="bold"),
+        ).pack(anchor="w", padx=16, pady=(12, 8))
+
+        icon_row = ctk.CTkFrame(card_info, fg_color="transparent")
+        icon_row.pack(fill="x", padx=16, pady=(0, 10))
 
         self.icon_preview = ctk.CTkLabel(
-            icon_frame,
+            icon_row,
             text="",
             width=80,
             height=80,
             fg_color="#2d2d30",
-            corner_radius=8,
+            corner_radius=10,
         )
-        self.icon_preview.pack(side="left", padx=(0, 10))
+        self.icon_preview.pack(side="left", padx=(0, 14))
         self._update_icon_preview()
 
-        icon_right = ctk.CTkFrame(icon_frame, fg_color="transparent")
-        icon_right.pack(side="left", fill="both", expand=True)
+        icon_col = ctk.CTkFrame(icon_row, fg_color="transparent")
+        icon_col.pack(side="left", fill="both", expand=True)
 
         btn_load = ctk.CTkButton(
-            icon_right, text="📁 Загрузить...", width=140, command=self._load_icon
+            icon_col,
+            text="📁 Загрузить...",
+            width=150,
+            height=32,
+            fg_color="#3e3e42",
+            hover_color="#4e4e52",
+            font=ctk.CTkFont(size=12),
+            command=self._load_icon,
         )
-        btn_load.pack(anchor="w", pady=(0, 5))
+        btn_load.pack(anchor="w", pady=(4, 6))
         Tooltip(btn_load, "Выбрать изображение любого формата", delay=400)
 
         ctk.CTkLabel(
-            icon_right,
+            icon_col,
             text="Квадрат, любой формат. Обрежется и сожмётся до 512×512.",
             font=ctk.CTkFont(size=10),
             text_color="#858585",
-            wraplength=380,
+            wraplength=360,
             justify="left",
         ).pack(anchor="w")
-        # ==============
 
-        ctk.CTkLabel(
-            form, text="Название", font=ctk.CTkFont(size=12, weight="bold")
-        ).pack(anchor="w", pady=(15, 2))
-        self.name_entry = ctk.CTkEntry(form, width=520)
+        # Название
+        ctk.CTkLabel(card_info, text="Название", font=ctk.CTkFont(size=12)).pack(
+            anchor="w", padx=16, pady=(0, 4)
+        )
+        self.name_entry = ctk.CTkEntry(card_info, height=32)
         self.name_entry.insert(0, self.project.name)
-        self.name_entry.pack(anchor="w", pady=(0, 10), fill="x")
+        self.name_entry.pack(fill="x", padx=16, pady=(0, 6))
         setup_clipboard(self.name_entry)
         Tooltip(
             self.name_entry,
@@ -96,26 +116,21 @@ class ProjectSettingsDialog(ctk.CTkToplevel):
         aliases = getattr(self.project, "aliases", [])
         if aliases:
             ctk.CTkLabel(
-                form,
-                text="Прошлые названия:",
-                font=ctk.CTkFont(size=10),
-                text_color="#858585",
-            ).pack(anchor="w")
-            ctk.CTkLabel(
-                form,
-                text=", ".join(aliases),
+                card_info,
+                text="Прошлые названия: " + ", ".join(aliases),
                 font=ctk.CTkFont(size=10),
                 text_color="#555555",
                 wraplength=520,
                 justify="left",
-            ).pack(anchor="w", pady=(0, 10))
+            ).pack(anchor="w", padx=16, pady=(0, 12))
 
-        ctk.CTkLabel(
-            form, text="Описание", font=ctk.CTkFont(size=12, weight="bold")
-        ).pack(anchor="w", pady=(10, 2))
-        self.desc_entry = ctk.CTkTextbox(form, width=520, height=70)
+        # Описание
+        ctk.CTkLabel(card_info, text="Описание", font=ctk.CTkFont(size=12)).pack(
+            anchor="w", padx=16, pady=(0, 4)
+        )
+        self.desc_entry = ctk.CTkTextbox(card_info, height=70)
         self.desc_entry.insert("1.0", self.project.description)
-        self.desc_entry.pack(anchor="w", pady=(0, 10), fill="x")
+        self.desc_entry.pack(fill="x", padx=16, pady=(0, 12))
         setup_clipboard(self.desc_entry)
         Tooltip(
             self.desc_entry,
@@ -123,42 +138,51 @@ class ProjectSettingsDialog(ctk.CTkToplevel):
             delay=400,
         )
 
+        # === Карточка: Автобекап ===
+        card_backup = ctk.CTkFrame(
+            form,
+            fg_color="#252526",
+            corner_radius=10,
+            border_width=1,
+            border_color="#3e3e42",
+        )
+        card_backup.pack(fill="x", pady=8)
+
+        ctk.CTkLabel(
+            card_backup, text="Автобекап", font=ctk.CTkFont(size=13, weight="bold")
+        ).pack(anchor="w", padx=16, pady=(12, 8))
+
         self.auto_backup_var = ctk.BooleanVar(
             value=getattr(self.project, "auto_backup_enabled", True)
         )
         cb = ctk.CTkCheckBox(
-            form,
+            card_backup,
             text="Автоматический бекап включён",
             variable=self.auto_backup_var,
             font=ctk.CTkFont(size=12),
         )
-        cb.pack(anchor="w", pady=5)
+        cb.pack(anchor="w", padx=16, pady=4)
         Tooltip(
-            cb,
-            "Автоматически создавать бекап при изменении выходного файла",
-            delay=400,
+            cb, "Автоматически создавать бекап при изменении выходного файла", delay=400
         )
 
-        interval_frame = ctk.CTkFrame(form, fg_color="transparent")
-        interval_frame.pack(anchor="w", pady=5, fill="x")
-
-        ctk.CTkLabel(
-            interval_frame, text="Интервал (сек):", font=ctk.CTkFont(size=11)
-        ).pack(side="left")
-        self.interval_entry = ctk.CTkEntry(interval_frame, width=100)
+        row1 = ctk.CTkFrame(card_backup, fg_color="transparent")
+        row1.pack(fill="x", padx=16, pady=6)
+        ctk.CTkLabel(row1, text="Интервал (сек):", font=ctk.CTkFont(size=11)).pack(
+            side="left"
+        )
+        self.interval_entry = ctk.CTkEntry(row1, width=100, height=28)
         self.interval_entry.insert(0, str(self.project.auto_backup_interval))
         self.interval_entry.pack(side="left", padx=10)
         setup_clipboard(self.interval_entry)
         Tooltip(
-            self.interval_entry,
-            "Интервал проверки изменений (в секундах)",
-            delay=400,
+            self.interval_entry, "Интервал проверки изменений (в секундах)", delay=400
         )
 
-        ctk.CTkLabel(
-            interval_frame, text="Макс. автобекапов:", font=ctk.CTkFont(size=11)
-        ).pack(side="left", padx=(20, 0))
-        self.max_backups_entry = ctk.CTkEntry(interval_frame, width=80)
+        ctk.CTkLabel(row1, text="Макс. автобекапов:", font=ctk.CTkFont(size=11)).pack(
+            side="left", padx=(20, 0)
+        )
+        self.max_backups_entry = ctk.CTkEntry(row1, width=80, height=28)
         self.max_backups_entry.insert(0, str(self.project.max_auto_backups))
         self.max_backups_entry.pack(side="left", padx=10)
         setup_clipboard(self.max_backups_entry)
@@ -168,73 +192,115 @@ class ProjectSettingsDialog(ctk.CTkToplevel):
             delay=400,
         )
 
+        # === Карточка: Интерфейс ===
+        card_ui = ctk.CTkFrame(
+            form,
+            fg_color="#252526",
+            corner_radius=10,
+            border_width=1,
+            border_color="#3e3e42",
+        )
+        card_ui.pack(fill="x", pady=8)
+
         ctk.CTkLabel(
-            form, text="Интерфейс", font=ctk.CTkFont(size=12, weight="bold")
-        ).pack(anchor="w", pady=(15, 5))
-        scroll_frame = ctk.CTkFrame(form, fg_color="transparent")
-        scroll_frame.pack(anchor="w", pady=5, fill="x")
+            card_ui, text="Интерфейс", font=ctk.CTkFont(size=13, weight="bold")
+        ).pack(anchor="w", padx=16, pady=(12, 8))
+
+        row_ui = ctk.CTkFrame(card_ui, fg_color="transparent")
+        row_ui.pack(fill="x", padx=16, pady=(0, 12))
         ctk.CTkLabel(
-            scroll_frame,
-            text="Чувствительность прокрутки (пикселей):",
-            font=ctk.CTkFont(size=11),
+            row_ui, text="Чувствительность прокрутки (px):", font=ctk.CTkFont(size=11)
         ).pack(side="left")
-        self.scroll_entry = ctk.CTkEntry(scroll_frame, width=80)
+        self.scroll_entry = ctk.CTkEntry(row_ui, width=80, height=28)
         self.scroll_entry.insert(0, str(getattr(self.project, "scroll_speed", 6)))
         self.scroll_entry.pack(side="left", padx=10)
         setup_clipboard(self.scroll_entry)
-        Tooltip(
-            self.scroll_entry,
-            "Шаг прокрутки колёсиком мыши в списках",
-            delay=400,
+        Tooltip(self.scroll_entry, "Шаг прокрутки колёсиком мыши в списках", delay=400)
+
+        # === Карточка: Пути ===
+        card_paths = ctk.CTkFrame(
+            form,
+            fg_color="#252526",
+            corner_radius=10,
+            border_width=1,
+            border_color="#3e3e42",
         )
+        card_paths.pack(fill="x", pady=8)
 
         ctk.CTkLabel(
-            form,
-            text="Путь к выходному файлу",
-            font=ctk.CTkFont(size=12, weight="bold"),
-        ).pack(anchor="w", pady=(15, 2))
-        out_frame = ctk.CTkFrame(form, fg_color="transparent")
-        out_frame.pack(anchor="w", pady=(0, 10), fill="x")
-        self.out_entry = ctk.CTkEntry(out_frame, width=440)
+            card_paths, text="Пути", font=ctk.CTkFont(size=13, weight="bold")
+        ).pack(anchor="w", padx=16, pady=(12, 8))
+
+        # Выходной файл
+        ctk.CTkLabel(card_paths, text="Выходной файл", font=ctk.CTkFont(size=12)).pack(
+            anchor="w", padx=16, pady=(0, 4)
+        )
+        out_row = ctk.CTkFrame(card_paths, fg_color="transparent")
+        out_row.pack(fill="x", padx=16, pady=(0, 10))
+        self.out_entry = ctk.CTkEntry(out_row, height=32)
         self.out_entry.insert(0, self.project.output_path)
         self.out_entry.pack(side="left", fill="x", expand=True)
         setup_clipboard(self.out_entry)
         Tooltip(self.out_entry, "Куда сохранять собранный результат", delay=400)
 
         btn_out = ctk.CTkButton(
-            out_frame, text="📁 Обзор", width=90, command=self._browse_output
+            out_row,
+            text="📁 Обзор",
+            width=110,
+            height=32,
+            fg_color="#3e3e42",
+            hover_color="#4e4e52",
+            font=ctk.CTkFont(size=12),
+            command=self._browse_output,
         )
-        btn_out.pack(side="right", padx=5)
+        btn_out.pack(side="right", padx=(8, 0))
         Tooltip(btn_out, "Выбрать файл через проводник", delay=400)
 
-        ctk.CTkLabel(
-            form, text="Папка бекапов", font=ctk.CTkFont(size=12, weight="bold")
-        ).pack(anchor="w", pady=(10, 2))
-        backup_frame = ctk.CTkFrame(form, fg_color="transparent")
-        backup_frame.pack(anchor="w", pady=(0, 10), fill="x")
-        self.backup_entry = ctk.CTkEntry(backup_frame, width=440)
+        # Папка бекапов
+        ctk.CTkLabel(card_paths, text="Папка бекапов", font=ctk.CTkFont(size=12)).pack(
+            anchor="w", padx=16, pady=(0, 4)
+        )
+        back_row = ctk.CTkFrame(card_paths, fg_color="transparent")
+        back_row.pack(fill="x", padx=16, pady=(0, 12))
+        self.backup_entry = ctk.CTkEntry(back_row, height=32)
         self.backup_entry.insert(0, self.project.backup_dir)
         self.backup_entry.pack(side="left", fill="x", expand=True)
         setup_clipboard(self.backup_entry)
         Tooltip(
-            self.backup_entry,
-            "Где хранить автоматические и ручные бекапы",
-            delay=400,
+            self.backup_entry, "Где хранить автоматические и ручные бекапы", delay=400
         )
 
-        btn_backup = ctk.CTkButton(
-            backup_frame, text="📁 Обзор", width=90, command=self._browse_backup
+        btn_back = ctk.CTkButton(
+            back_row,
+            text="📁 Обзор",
+            width=110,
+            height=32,
+            fg_color="#3e3e42",
+            hover_color="#4e4e52",
+            font=ctk.CTkFont(size=12),
+            command=self._browse_backup,
         )
-        btn_backup.pack(side="right", padx=5)
-        Tooltip(btn_backup, "Выбрать папку через проводник", delay=400)
+        btn_back.pack(side="right", padx=(8, 0))
+        Tooltip(btn_back, "Выбрать папку через проводник", delay=400)
 
-        ctk.CTkLabel(form, text="Git", font=ctk.CTkFont(size=12, weight="bold")).pack(
-            anchor="w", pady=(15, 2)
+        # === Карточка: Git ===
+        card_git = ctk.CTkFrame(
+            form,
+            fg_color="#252526",
+            corner_radius=10,
+            border_width=1,
+            border_color="#3e3e42",
         )
+        card_git.pack(fill="x", pady=8)
+
         ctk.CTkLabel(
-            form, text="Сообщение коммита по умолчанию:", font=ctk.CTkFont(size=11)
-        ).pack(anchor="w")
-        self.git_msg_entry = ctk.CTkEntry(form, width=520)
+            card_git, text="Git", font=ctk.CTkFont(size=13, weight="bold")
+        ).pack(anchor="w", padx=16, pady=(12, 8))
+
+        ctk.CTkLabel(
+            card_git, text="Сообщение коммита по умолчанию:", font=ctk.CTkFont(size=11)
+        ).pack(anchor="w", padx=16, pady=(0, 4))
+        self.git_msg_entry = ctk.CTkEntry(card_git, height=32)
         self.git_msg_entry.insert(
             0,
             getattr(
@@ -243,17 +309,14 @@ class ProjectSettingsDialog(ctk.CTkToplevel):
                 "update: changes from Code Aggregator",
             ),
         )
-        self.git_msg_entry.pack(anchor="w", pady=(0, 10), fill="x")
+        self.git_msg_entry.pack(fill="x", padx=16, pady=(0, 12))
         setup_clipboard(self.git_msg_entry)
-        Tooltip(
-            self.git_msg_entry,
-            "Шаблон сообщения для git commit",
-            delay=400,
-        )
+        Tooltip(self.git_msg_entry, "Шаблон сообщения для git commit", delay=400)
 
+        # Кнопки
         btn_frame = ctk.CTkFrame(self, fg_color="transparent", height=50)
         btn_frame.pack_propagate(False)
-        btn_frame.pack(side="bottom", fill="x", padx=20, pady=15)
+        btn_frame.pack(side="bottom", fill="x", padx=24, pady=16)
 
         btn_save = ctk.CTkButton(
             btn_frame,
@@ -261,7 +324,8 @@ class ProjectSettingsDialog(ctk.CTkToplevel):
             fg_color="#007acc",
             hover_color="#005a9e",
             font=ctk.CTkFont(size=13),
-            width=120,
+            width=130,
+            height=32,
             command=self._save,
         )
         btn_save.pack(side="right", padx=5)
@@ -272,6 +336,9 @@ class ProjectSettingsDialog(ctk.CTkToplevel):
             text="Отмена",
             font=ctk.CTkFont(size=13),
             width=100,
+            height=32,
+            fg_color="#3e3e42",
+            hover_color="#4e4e52",
             command=self._cancel,
         )
         btn_cancel.pack(side="right", padx=5)

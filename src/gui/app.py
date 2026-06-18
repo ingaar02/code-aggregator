@@ -28,19 +28,25 @@ class App(ctk.CTk):
         os.makedirs("projects-data", exist_ok=True)
 
         # === ТУЛБАР ===
-        self.toolbar = ctk.CTkFrame(self, fg_color="#252526", height=44)
+        self.toolbar = ctk.CTkFrame(self, fg_color="#252526", height=48)
         self.toolbar.pack_propagate(False)
         self.toolbar.pack(fill="x", side="top")
 
         self.project_selector = ctk.CTkOptionMenu(
             self.toolbar,
             values=[],
-            width=240,
+            width=280,
             font=ctk.CTkFont(size=13),
             dropdown_font=ctk.CTkFont(size=12),
+            fg_color="#3e3e42",
+            button_color="#3e3e42",
+            button_hover_color="#4e4e52",
+            dropdown_fg_color="#2d2d30",
+            dropdown_hover_color="#3e3e42",
+            text_color="white",
             command=self._on_project_selected,
         )
-        self.project_selector.pack(side="left", padx=15, pady=5)
+        self.project_selector.pack(side="left", padx=15, pady=6)
         Tooltip(
             self.project_selector,
             "Выберите проект. Описание отображается при наведении.",
@@ -52,8 +58,9 @@ class App(ctk.CTk):
         btn_add = ctk.CTkButton(
             self.toolbar,
             text="+",
-            width=32,
-            height=32,
+            width=34,
+            height=34,
+            corner_radius=6,
             fg_color="#007acc",
             hover_color="#005a9e",
             font=ctk.CTkFont(size=16, weight="bold"),
@@ -65,8 +72,9 @@ class App(ctk.CTk):
         btn_del = ctk.CTkButton(
             self.toolbar,
             text="🗑",
-            width=32,
-            height=32,
+            width=34,
+            height=34,
+            corner_radius=6,
             fg_color="transparent",
             text_color="#858585",
             hover_color="#c75450",
@@ -76,11 +84,9 @@ class App(ctk.CTk):
         btn_del.pack(side="left", padx=5)
         Tooltip(btn_del, "Удалить текущий проект", delay=300)
 
-        # Тонкая линия-разделитель (1px)
         ctk.CTkFrame(self, height=1, fg_color="#3e3e42").pack(fill="x")
         # ==============
 
-        # Контент
         self.content = ctk.CTkFrame(self, fg_color="transparent")
         self.content.pack(fill="both", expand=True)
 
@@ -91,7 +97,6 @@ class App(ctk.CTk):
         )
         self.editor.pack(fill="both", expand=True)
 
-        # Статус-бар с прогрессом
         self.status_bar = ProgressStatusBar(self.content)
         self.status_bar.pack(side="bottom", fill="x")
 
@@ -126,7 +131,6 @@ class App(ctk.CTk):
             self.status_bar.set(text, color)
 
     def _progress_callback(self, action, value=None):
-        """Управление прогресс-баром из дочерних компонентов."""
         if not hasattr(self, "status_bar"):
             return
         if action == "show":
@@ -192,7 +196,7 @@ class App(ctk.CTk):
     def _on_create(self):
         dialog = ctk.CTkToplevel(self)
         dialog.title("Новый проект")
-        dialog.geometry("500x350")
+        dialog.geometry("520x380")
         dialog.resizable(False, False)
         dialog.grab_set()
 
@@ -207,7 +211,7 @@ class App(ctk.CTk):
         ctk.CTkLabel(dialog, text="Название проекта *", font=ctk.CTkFont(size=12)).pack(
             anchor="w", padx=30
         )
-        name_entry = ctk.CTkEntry(dialog, width=440)
+        name_entry = ctk.CTkEntry(dialog, width=460, height=32)
         name_entry.pack(pady=(0, 10), padx=30)
         setup_clipboard(name_entry)
         Tooltip(name_entry, "Введите уникальное название проекта", delay=400)
@@ -218,7 +222,7 @@ class App(ctk.CTk):
         dir_frame = ctk.CTkFrame(dialog, fg_color="transparent")
         dir_frame.pack(pady=(0, 15), padx=30, fill="x")
 
-        dir_entry = ctk.CTkEntry(dir_frame, width=360)
+        dir_entry = ctk.CTkEntry(dir_frame, height=32)
         dir_entry.pack(side="left", fill="x", expand=True)
         setup_clipboard(dir_entry)
         Tooltip(dir_entry, "Путь к корневой папке проекта", delay=400)
@@ -229,7 +233,16 @@ class App(ctk.CTk):
                 dir_entry.delete(0, "end")
                 dir_entry.insert(0, path)
 
-        btn_browse = ctk.CTkButton(dir_frame, text="📁 Обзор", width=80, command=browse)
+        btn_browse = ctk.CTkButton(
+            dir_frame,
+            text="📁 Обзор",
+            width=110,
+            height=32,
+            fg_color="#3e3e42",
+            hover_color="#4e4e52",
+            font=ctk.CTkFont(size=12),
+            command=browse,
+        )
         btn_browse.pack(side="right", padx=(10, 0))
         Tooltip(btn_browse, "Выбрать папку через проводник", delay=400)
 
@@ -240,6 +253,7 @@ class App(ctk.CTk):
             hover_color="#005a9e",
             font=ctk.CTkFont(size=13),
             width=200,
+            height=32,
             state="disabled",
         )
         create_btn.pack(pady=10)
@@ -316,8 +330,8 @@ class App(ctk.CTk):
         ).pack(pady=5)
 
         dialog.update_idletasks()
-        dx = self.winfo_x() + (self.winfo_width() - 500) // 2
-        dy = self.winfo_y() + (self.winfo_height() - 350) // 2
+        dx = self.winfo_x() + (self.winfo_width() - 520) // 2
+        dy = self.winfo_y() + (self.winfo_height() - 380) // 2
         dialog.geometry(f"+{dx}+{dy}")
 
     def _on_delete_current(self):
