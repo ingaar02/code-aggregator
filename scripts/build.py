@@ -18,13 +18,14 @@ ICON_SOURCE = PROJECT_ROOT / "assets" / "icon_source.png"
 
 
 def log(msg):
-    print(f"[BUILD] {msg}")
+    print("[BUILD] " + str(msg))
+    sys.stdout.flush()
 
 
 def ensure_icon():
     """Generate icon in proper format for current OS."""
     if not ICON_SOURCE.exists():
-        log(f"ERROR: Icon not found: {ICON_SOURCE}")
+        log("ERROR: Icon not found: " + str(ICON_SOURCE))
         log("Create assets/icon_source.png (512x512, PNG)")
         sys.exit(1)
 
@@ -41,7 +42,7 @@ def ensure_icon():
             icon_path = icon_dir / "icon.ico"
             sizes = [(16, 16), (32, 32), (48, 48), (64, 64), (128, 128), (256, 256)]
             img.save(icon_path, format="ICO", sizes=sizes)
-            log(f"Windows icon: {icon_path}")
+            log("Windows icon: " + str(icon_path))
             return icon_path
         except ImportError:
             log("ERROR: Pillow not installed, cannot create .ico")
@@ -63,7 +64,7 @@ def ensure_icon():
                         str(size),
                         str(ICON_SOURCE),
                         "--out",
-                        str(temp_dir / f"icon_{size}x{size}.png"),
+                        str(temp_dir / "icon_{}x{}.png".format(size, size)),
                     ],
                     check=True,
                     capture_output=True,
@@ -77,7 +78,7 @@ def ensure_icon():
                             str(size * 2),
                             str(ICON_SOURCE),
                             "--out",
-                            str(temp_dir / f"icon_{size}x{size}@2x.png"),
+                            str(temp_dir / "icon_{}x{}@2x.png".format(size, size)),
                         ],
                         check=True,
                         capture_output=True,
@@ -88,16 +89,16 @@ def ensure_icon():
                 check=True,
             )
             shutil.rmtree(temp_dir)
-            log(f"macOS icon: {icon_path}")
+            log("macOS icon: " + str(icon_path))
             return icon_path
         except Exception as e:
-            log(f"ERROR: Failed to create .icns: {e}")
+            log("ERROR: Failed to create .icns: " + str(e))
             return None
 
     else:
         icon_path = icon_dir / "icon.png"
         shutil.copy2(ICON_SOURCE, icon_path)
-        log(f"Linux icon: {icon_path}")
+        log("Linux icon: " + str(icon_path))
         return icon_path
 
 
@@ -106,7 +107,7 @@ def build():
     for d in [DIST_DIR, BUILD_DIR]:
         if d.exists():
             shutil.rmtree(d)
-            log(f"Removed: {d}")
+            log("Removed: " + str(d))
 
     log("Preparing icon...")
     icon_path = ensure_icon()
@@ -122,14 +123,14 @@ def build():
         "--name",
         "CodeAggregator",
         "--add-data",
-        f"{SRC_DIR}{os.pathsep}src",
+        "{};src".format(str(SRC_DIR)),
         "--clean",
         "--noconfirm",
     ]
 
     if icon_path and icon_path.exists():
         cmd.extend(["--icon", str(icon_path)])
-        cmd.extend(["--add-data", f"{icon_path}{os.pathsep}."])
+        cmd.extend(["--add-data", "{};.".format(str(icon_path))])
 
     if sys.platform == "darwin":
         cmd.extend(
@@ -141,7 +142,7 @@ def build():
 
     cmd.append(str(SRC_DIR / "main.py"))
 
-    log(f"Command: {' '.join(cmd)}")
+    log("Command: " + " ".join(cmd))
     result = subprocess.run(cmd, cwd=PROJECT_ROOT)
 
     if result.returncode != 0:
@@ -157,7 +158,7 @@ def build():
     else:
         exe_name = "CodeAggregator"
 
-    log(f"Checking result: {DIST_DIR / exe_name}")
+    log("Checking result: " + str(DIST_DIR / exe_name))
     if (DIST_DIR / exe_name).exists():
         log("SUCCESS: Executable created")
     else:
