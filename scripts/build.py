@@ -16,6 +16,12 @@ DIST_DIR = PROJECT_ROOT / "dist"
 BUILD_DIR = PROJECT_ROOT / "build"
 ICON_SOURCE = PROJECT_ROOT / "assets" / "icon_source.png"
 
+# PyInstaller требует разный разделитель на разных платформах
+if sys.platform == "win32":
+    DATA_SEP = ";"
+else:
+    DATA_SEP = ":"
+
 
 def log(msg):
     print("[BUILD] " + str(msg))
@@ -114,6 +120,10 @@ def build():
 
     log("Running PyInstaller...")
 
+    # Формируем --add-data с правильным разделителем для платформы
+    add_data_src = str(SRC_DIR) + DATA_SEP + "src"
+    add_data_icon = str(icon_path) + DATA_SEP + "." if icon_path else None
+
     cmd = [
         sys.executable,
         "-m",
@@ -123,14 +133,16 @@ def build():
         "--name",
         "CodeAggregator",
         "--add-data",
-        "{};src".format(str(SRC_DIR)),
+        add_data_src,
         "--clean",
         "--noconfirm",
     ]
 
+    if add_data_icon:
+        cmd.extend(["--add-data", add_data_icon])
+
     if icon_path and icon_path.exists():
         cmd.extend(["--icon", str(icon_path)])
-        cmd.extend(["--add-data", "{};.".format(str(icon_path))])
 
     if sys.platform == "darwin":
         cmd.extend(
