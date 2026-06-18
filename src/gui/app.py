@@ -1,7 +1,7 @@
 import os
 import customtkinter as ctk
 from gui.project_editor import ProjectEditor
-from gui.components import Toast, ConfirmDialog, StatusBar
+from gui.components import Toast, ConfirmDialog, ProgressStatusBar, Tooltip
 from core.project_manager import ProjectManager, Source
 from core.auto_backup import AutoBackupThread
 
@@ -41,8 +41,15 @@ class App(ctk.CTk):
             command=self._on_project_selected,
         )
         self.project_selector.pack(side="left", padx=15, pady=5)
+        Tooltip(
+            self.project_selector,
+            "Выберите проект. Описание отображается при наведении.",
+            delay=300,
+        )
 
-        ctk.CTkButton(
+        self._selector_tooltip = Tooltip(self.project_selector, "", delay=300)
+
+        btn_add = ctk.CTkButton(
             self.toolbar,
             text="+",
             width=32,
@@ -51,9 +58,11 @@ class App(ctk.CTk):
             hover_color="#005a9e",
             font=ctk.CTkFont(size=16, weight="bold"),
             command=self._on_create,
-        ).pack(side="left", padx=5)
+        )
+        btn_add.pack(side="left", padx=5)
+        Tooltip(btn_add, "Создать новый проект", delay=300)
 
-        ctk.CTkButton(
+        btn_del = ctk.CTkButton(
             self.toolbar,
             text="🗑",
             width=32,
@@ -63,21 +72,27 @@ class App(ctk.CTk):
             hover_color="#c75450",
             font=ctk.CTkFont(size=14),
             command=self._on_delete_current,
-        ).pack(side="left", padx=5)
+        )
+        btn_del.pack(side="left", padx=5)
+        Tooltip(btn_del, "Удалить текущий проект", delay=300)
 
         # Тонкая линия-разделитель (1px)
         ctk.CTkFrame(self, height=1, fg_color="#3e3e42").pack(fill="x")
         # ==============
 
-        # Контент (растягивается на всё оставшееся пространство)
+        # Контент
         self.content = ctk.CTkFrame(self, fg_color="transparent")
         self.content.pack(fill="both", expand=True)
 
-        self.editor = ProjectEditor(self.content, status_callback=self._set_status)
+        self.editor = ProjectEditor(
+            self.content,
+            status_callback=self._set_status,
+            progress_callback=self._progress_callback,
+        )
         self.editor.pack(fill="both", expand=True)
 
-        # Статус-бар
-        self.status_bar = StatusBar(self.content)
+        # Статус-бар с прогрессом
+        self.status_bar = ProgressStatusBar(self.content)
         self.status_bar.pack(side="bottom", fill="x")
 
         self._refresh_selector()
@@ -109,6 +124,17 @@ class App(ctk.CTk):
     def _set_status(self, text, color="#858585"):
         if hasattr(self, "status_bar") and self.status_bar.winfo_exists():
             self.status_bar.set(text, color)
+
+    def _progress_callback(self, action, value=None):
+        """Управление прогресс-баром из дочерних компонентов."""
+        if not hasattr(self, "status_bar"):
+            return
+        if action == "show":
+            self.status_bar.show_progress(value if value is not None else 0.3)
+        elif action == "set":
+            self.status_bar.set_progress(value if value is not None else 0.5)
+        elif action == "hide":
+            self.status_bar.hide_progress()
 
     def _start_backup_thread(self, project):
         if self.backup_thread:
@@ -144,15 +170,18 @@ class App(ctk.CTk):
             self.backup_thread = None
 
         self.current_project = project
-        self.pm.config.set(
-            "last_project_id", project.id
-        )  # ← ЗАПОМИНАЕМ ПОСЛЕДНИЙ ПРОЕКТ
+        self.pm.config.set("last_project_id", project.id)
+
+        desc = getattr(project, "description", "") or "Нет описания"
+        self._selector_tooltip.set_text(f"{project.name}\n{desc}")
+
         self.editor.destroy()
         self.editor = ProjectEditor(
             self.content,
             project=project,
             on_save=self._on_save,
             status_callback=self._set_status,
+            progress_callback=self._progress_callback,
         )
         self.editor.pack(fill="both", expand=True)
 
@@ -181,6 +210,7 @@ class App(ctk.CTk):
         name_entry = ctk.CTkEntry(dialog, width=440)
         name_entry.pack(pady=(0, 10), padx=30)
         setup_clipboard(name_entry)
+        Tooltip(name_entry, "Введите уникальное название проекта", delay=400)
 
         ctk.CTkLabel(
             dialog, text="Папка с исходниками", font=ctk.CTkFont(size=12)
@@ -191,6 +221,7 @@ class App(ctk.CTk):
         dir_entry = ctk.CTkEntry(dir_frame, width=360)
         dir_entry.pack(side="left", fill="x", expand=True)
         setup_clipboard(dir_entry)
+        Tooltip(dir_entry, "Путь к корневой папке проекта", delay=400)
 
         def browse():
             path = ctk.filedialog.askdirectory()
@@ -198,9 +229,9 @@ class App(ctk.CTk):
                 dir_entry.delete(0, "end")
                 dir_entry.insert(0, path)
 
-        ctk.CTkButton(dir_frame, text="Обзор", width=70, command=browse).pack(
-            side="right", padx=(10, 0)
-        )
+        btn_browse = ctk.CTkButton(dir_frame, text="📁 Обзор", width=80, command=browse)
+        btn_browse.pack(side="right", padx=(10, 0))
+        Tooltip(btn_browse, "Выбрать папку через проводник", delay=400)
 
         create_btn = ctk.CTkButton(
             dialog,
@@ -307,7 +338,11 @@ class App(ctk.CTk):
             self.pm.delete(self.current_project.id)
             self.current_project = None
             self.editor.destroy()
-            self.editor = ProjectEditor(self.content, status_callback=self._set_status)
+            self.editor = ProjectEditor(
+                self.content,
+                status_callback=self._set_status,
+                progress_callback=self._progress_callback,
+            )
             self.editor.pack(fill="both", expand=True)
 
             self._refresh_selector()

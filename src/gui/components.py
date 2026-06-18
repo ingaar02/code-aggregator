@@ -73,8 +73,78 @@ class ConfirmDialog(ctk.CTkToplevel):
         self.destroy()
 
 
-class StatusBar(ctk.CTkFrame):
-    """Фиксированный статус-бар внизу окна"""
+class Tooltip:
+    """Универсальный тултип для любого виджета customtkinter/tkinter."""
+
+    def __init__(self, widget, text="", delay=500, wrap=350):
+        self.widget = widget
+        self.text = text
+        self.delay = delay
+        self.wrap = wrap
+        self.tipwindow = None
+        self.id = None
+        self.widget.bind("<Enter>", self._on_enter)
+        self.widget.bind("<Leave>", self._on_leave)
+        self.widget.bind("<ButtonPress>", self._on_leave)
+
+    def set_text(self, text):
+        self.text = text
+
+    def _on_enter(self, event=None):
+        self.id = self.widget.after(self.delay, self._show)
+
+    def _on_leave(self, event=None):
+        if self.id:
+            self.widget.after_cancel(self.id)
+            self.id = None
+        self._hide()
+
+    def _show(self):
+        if self.tipwindow or not self.text:
+            return
+        x = self.widget.winfo_rootx() + self.widget.winfo_width() // 2
+        y = self.widget.winfo_rooty() + self.widget.winfo_height() + 5
+
+        self.tipwindow = ctk.CTkToplevel(self.widget)
+        self.tipwindow.wm_overrideredirect(True)
+        self.tipwindow.wm_geometry(f"+{x}+{y}")
+        self.tipwindow.attributes("-topmost", True)
+        self.tipwindow.configure(fg_color="#2d2d30")
+
+        frame = ctk.CTkFrame(self.tipwindow, fg_color="#2d2d30", corner_radius=6)
+        frame.pack(padx=1, pady=1)
+
+        label = ctk.CTkLabel(
+            frame,
+            text=self.text,
+            font=ctk.CTkFont(size=11),
+            text_color="#cccccc",
+            wraplength=self.wrap,
+            justify="left",
+        )
+        label.pack(padx=10, pady=6)
+
+        self.tipwindow.update_idletasks()
+        tw = self.tipwindow.winfo_width()
+        th = self.tipwindow.winfo_height()
+        sw = self.widget.winfo_screenwidth()
+        sh = self.widget.winfo_screenheight()
+
+        if x + tw > sw:
+            x = sw - tw - 10
+        if y + th > sh:
+            y = self.widget.winfo_rooty() - th - 5
+
+        self.tipwindow.wm_geometry(f"+{x}+{y}")
+
+    def _hide(self):
+        if self.tipwindow:
+            self.tipwindow.destroy()
+            self.tipwindow = None
+
+
+class ProgressStatusBar(ctk.CTkFrame):
+    """Статус-бар с интегрированным прогресс-баром."""
 
     def __init__(self, parent, **kwargs):
         super().__init__(parent, fg_color="#252526", height=32, **kwargs)
@@ -85,5 +155,31 @@ class StatusBar(ctk.CTkFrame):
         )
         self.label.pack(side="left", padx=15, pady=4)
 
+        self.progress = ctk.CTkProgressBar(
+            self,
+            width=150,
+            height=8,
+            fg_color="#3e3e42",
+            progress_color="#007acc",
+            border_width=0,
+        )
+        self.progress.set(0)
+        self._progress_visible = False
+
     def set(self, text, color="#858585"):
         self.label.configure(text=text, text_color=color)
+
+    def show_progress(self, value=0.3):
+        if not self._progress_visible:
+            self.progress.pack(side="right", padx=15, pady=4)
+            self._progress_visible = True
+        self.progress.set(value)
+
+    def set_progress(self, value):
+        self.progress.set(value)
+
+    def hide_progress(self):
+        if self._progress_visible:
+            self.progress.pack_forget()
+            self._progress_visible = False
+            self.progress.set(0)
