@@ -1,0 +1,134 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Build executable
+        run: python scripts/build.py
+
+      - name: Build installer
+        run: |
+          choco install innosetup
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" "installer\windows\installer.iss"
+
+      - name: Upload Windows artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-installer
+          path: dist/CodeAggregator-*-setup.exe
+
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Build executable
+        run: python scripts/build.py
+
+      - name: Build DMG
+        run: |
+          brew install create-dmg
+          bash installer/macos/build_dmg.sh
+
+      - name: Upload macOS artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-dmg
+          path: dist/*.dmg
+
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Build executable
+        run: python scripts/build.py
+
+      - name: Build AppImage
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libfuse2
+          bash installer/linux/build_appimage.sh
+
+      - name: Upload Linux artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-appimage
+          path: dist/*.AppImage
+
+  release:
+    needs: [build-windows, build-macos, build-linux]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Rename artifacts with version
+        run: |
+          cd artifacts
+          for f in CodeAggregator-*-setup.exe; do
+            [ -f "$f" ] && mv "$f" "CodeAggregator-1.0.0-windows-setup.exe"
+          done
+          for f in *.dmg; do
+            [ -f "$f" ] && mv "$f" "CodeAggregator-1.0.0-macos.dmg"
+          done
+          for f in *.AppImage; do
+            [ -f "$f" ] && mv "$f" "CodeAggregator-1.0.0-linux.AppImage"
+          done
+          ls -la
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: artifacts/*
+          draft: true
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
