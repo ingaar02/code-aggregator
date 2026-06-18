@@ -18,18 +18,24 @@ jobs:
           python-version: '3.11'
 
       - name: Install dependencies
+        shell: pwsh
         run: |
+          chcp 65001
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install pyinstaller
 
       - name: Build executable
-        run: python scripts/build.py
+        shell: pwsh
+        run: |
+          chcp 65001
+          python scripts/build.py
 
       - name: Build installer
+        shell: cmd
         run: |
           choco install innosetup
-          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" "installer\windows\installer.iss"
+          "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" "installer\windows\installer.iss"
 
       - name: Upload Windows artifact
         uses: actions/upload-artifact@v4
@@ -110,7 +116,7 @@ jobs:
           path: artifacts
           merge-multiple: true
 
-      - name: Rename artifacts with version
+      - name: Rename artifacts
         run: |
           cd artifacts
           for f in CodeAggregator-*-setup.exe; do

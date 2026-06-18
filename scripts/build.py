@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Универсальный скрипт сборки для PyInstaller.
-Запускается на Windows, macOS и Linux.
+Universal build script for PyInstaller.
+Runs on Windows, macOS and Linux.
 """
 
 import os
@@ -16,29 +16,16 @@ DIST_DIR = PROJECT_ROOT / "dist"
 BUILD_DIR = PROJECT_ROOT / "build"
 ICON_SOURCE = PROJECT_ROOT / "assets" / "icon_source.png"
 
-GREEN = "\033[92m"
-BLUE = "\033[94m"
-RED = "\033[91m"
-RESET = "\033[0m"
 
-
-def print_step(msg):
-    print(f"\n{BLUE}▶ {msg}{RESET}")
-
-
-def print_ok(msg):
-    print(f"{GREEN}✓ {msg}{RESET}")
-
-
-def print_error(msg):
-    print(f"{RED}✗ {msg}{RESET}")
+def log(msg):
+    print(f"[BUILD] {msg}")
 
 
 def ensure_icon():
-    """Генерирует иконку нужного формата для текущей ОС."""
+    """Generate icon in proper format for current OS."""
     if not ICON_SOURCE.exists():
-        print_error(f"Иконка не найдена: {ICON_SOURCE}")
-        print("Создайте assets/icon_source.png (512x512, PNG)")
+        log(f"ERROR: Icon not found: {ICON_SOURCE}")
+        log("Create assets/icon_source.png (512x512, PNG)")
         sys.exit(1)
 
     icon_dir = PROJECT_ROOT / "assets" / "icons"
@@ -54,10 +41,10 @@ def ensure_icon():
             icon_path = icon_dir / "icon.ico"
             sizes = [(16, 16), (32, 32), (48, 48), (64, 64), (128, 128), (256, 256)]
             img.save(icon_path, format="ICO", sizes=sizes)
-            print_ok(f"Иконка Windows: {icon_path}")
+            log(f"Windows icon: {icon_path}")
             return icon_path
         except ImportError:
-            print_error("Pillow не установлен, нельзя создать .ico")
+            log("ERROR: Pillow not installed, cannot create .ico")
             return None
 
     elif system == "darwin":
@@ -101,30 +88,30 @@ def ensure_icon():
                 check=True,
             )
             shutil.rmtree(temp_dir)
-            print_ok(f"Иконка macOS: {icon_path}")
+            log(f"macOS icon: {icon_path}")
             return icon_path
         except Exception as e:
-            print_error(f"Не удалось создать .icns: {e}")
+            log(f"ERROR: Failed to create .icns: {e}")
             return None
 
     else:
         icon_path = icon_dir / "icon.png"
         shutil.copy2(ICON_SOURCE, icon_path)
-        print_ok(f"Иконка Linux: {icon_path}")
+        log(f"Linux icon: {icon_path}")
         return icon_path
 
 
 def build():
-    print_step("Очистка старых сборок...")
+    log("Cleaning old builds...")
     for d in [DIST_DIR, BUILD_DIR]:
         if d.exists():
             shutil.rmtree(d)
-            print_ok(f"Удалена папка: {d}")
+            log(f"Removed: {d}")
 
-    print_step("Подготовка иконки...")
+    log("Preparing icon...")
     icon_path = ensure_icon()
 
-    print_step("Сборка PyInstaller...")
+    log("Running PyInstaller...")
 
     cmd = [
         sys.executable,
@@ -142,7 +129,6 @@ def build():
 
     if icon_path and icon_path.exists():
         cmd.extend(["--icon", str(icon_path)])
-        # Копируем иконку рядом с .exe для main.py
         cmd.extend(["--add-data", f"{icon_path}{os.pathsep}."])
 
     if sys.platform == "darwin":
@@ -155,16 +141,15 @@ def build():
 
     cmd.append(str(SRC_DIR / "main.py"))
 
-    print(f"Команда: {' '.join(cmd)}")
+    log(f"Command: {' '.join(cmd)}")
     result = subprocess.run(cmd, cwd=PROJECT_ROOT)
 
     if result.returncode != 0:
-        print_error("Сборка PyInstaller провалена")
+        log("ERROR: PyInstaller build failed")
         sys.exit(1)
 
-    print_ok("Сборка завершена")
+    log("Build completed")
 
-    # Проверка
     if sys.platform == "win32":
         exe_name = "CodeAggregator.exe"
     elif sys.platform == "darwin":
@@ -172,11 +157,11 @@ def build():
     else:
         exe_name = "CodeAggregator"
 
-    print_step(f"Проверка результата: {DIST_DIR / exe_name}")
+    log(f"Checking result: {DIST_DIR / exe_name}")
     if (DIST_DIR / exe_name).exists():
-        print_ok("Исполняемый файл создан")
+        log("SUCCESS: Executable created")
     else:
-        print_error("Исполняемый файл не найден!")
+        log("ERROR: Executable not found!")
         sys.exit(1)
 
 
